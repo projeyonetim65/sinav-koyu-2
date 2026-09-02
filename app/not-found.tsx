@@ -38,13 +38,6 @@ export default function NotFound() {
             Ana Sayfaya Dön
           </a>
 
-          <a
-            href="/dashboard"
-            className="inline-flex w-full items-center justify-center rounded-xl border border-slate-200 bg-white px-6 py-3 text-sm font-black text-slate-700 transition hover:bg-slate-50 sm:w-auto"
-          >
-            Derslere Dön
-          </a>
-
         </div>
 
         {/* BRAND */}
