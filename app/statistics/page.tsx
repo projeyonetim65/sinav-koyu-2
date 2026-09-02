@@ -6,10 +6,20 @@ import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
 
 type Exam = {
-  id: number;
-  exam_name: string;
-  exam_date: string;
-  total_net: number | null;
+  id: string;
+  name: string;
+  description: string | null;
+  exam_date: string | null;
+  turkish_correct: number | null;
+  turkish_wrong: number | null;
+  math_correct: number | null;
+  math_wrong: number | null;
+  science_correct: number | null;
+  science_wrong: number | null;
+  social_correct: number | null;
+  social_wrong: number | null;
+  created_at: string;
+  user_id: string;
 };
 
 type UserTopic = {
@@ -17,69 +27,150 @@ type UserTopic = {
   status: "not_started" | "in_progress" | "completed";
 };
 
+function calculateNet(
+  correct: number | null,
+  wrong: number | null
+) {
+  return (
+    Number(correct || 0) -
+    Number(wrong || 0) / 4
+  );
+}
+
+function calculateTotalNet(exam: Exam) {
+  const turkishNet = calculateNet(
+    exam.turkish_correct,
+    exam.turkish_wrong
+  );
+
+  const mathNet = calculateNet(
+    exam.math_correct,
+    exam.math_wrong
+  );
+
+  const scienceNet = calculateNet(
+    exam.science_correct,
+    exam.science_wrong
+  );
+
+  const socialNet = calculateNet(
+    exam.social_correct,
+    exam.social_wrong
+  );
+
+  return (
+    turkishNet +
+    mathNet +
+    scienceNet +
+    socialNet
+  );
+}
+
 export default function StatisticsPage() {
   const [exams, setExams] = useState<Exam[]>([]);
   const [topics, setTopics] = useState<UserTopic[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadStatistics();
+    void loadStatistics();
   }, []);
 
   async function loadStatistics() {
     setLoading(true);
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    try {
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
 
-    if (!user) {
-      window.location.replace("/auth");
-      return;
-    }
+      if (userError) {
+        console.error(
+          "Kullanıcı bilgisi alınamadı:",
+          userError
+        );
 
-    const [
-      { data: examData, error: examError },
-      { data: topicData, error: topicError },
-    ] = await Promise.all([
-      supabase
-        .from("exams_results")
-        .select("id, exam_name, exam_date, total_net")
-        .eq("user_id", user.id)
-        .order("exam_date", {
-          ascending: true,
-        }),
+        setLoading(false);
+        return;
+      }
 
-      supabase
-        .from("user_topics")
-        .select("topic_id, status")
-        .eq("user_id", user.id),
-    ]);
+      if (!user) {
+        window.location.replace("/auth");
+        return;
+      }
 
-    if (examError) {
+      const [
+        { data: examData, error: examError },
+        { data: topicData, error: topicError },
+      ] = await Promise.all([
+        supabase
+          .from("exams")
+          .select(
+            `
+            id,
+            name,
+            description,
+            exam_date,
+            turkish_correct,
+            turkish_wrong,
+            math_correct,
+            math_wrong,
+            science_correct,
+            science_wrong,
+            social_correct,
+            social_wrong,
+            created_at,
+            user_id
+            `
+          )
+          .eq("user_id", user.id)
+          .order("exam_date", {
+            ascending: true,
+          }),
+
+        supabase
+          .from("user_topics")
+          .select("topic_id, status")
+          .eq("user_id", user.id),
+      ]);
+
+      if (examError) {
+        console.error(
+          "Deneme istatistikleri yükleme hatası:",
+          examError
+        );
+      }
+
+      if (topicError) {
+        console.error(
+          "Konu istatistikleri yükleme hatası:",
+          topicError
+        );
+      }
+
+      setExams((examData as Exam[]) || []);
+      setTopics((topicData as UserTopic[]) || []);
+    } catch (error) {
       console.error(
-        "Deneme istatistikleri yükleme hatası:",
-        examError
+        "İstatistikler yüklenirken beklenmeyen hata:",
+        error
       );
+    } finally {
+      setLoading(false);
     }
-
-    if (topicError) {
-      console.error(
-        "Konu istatistikleri yükleme hatası:",
-        topicError
-      );
-    }
-
-    setExams(examData || []);
-    setTopics(topicData || []);
-
-    setLoading(false);
   }
 
+  const examsWithNets = useMemo(() => {
+    return exams.map((exam) => ({
+      ...exam,
+      totalNet: calculateTotalNet(exam),
+    }));
+  }, [exams]);
+
   const statistics = useMemo(() => {
-    const validNets = exams
-      .map((exam) => Number(exam.total_net))
-      .filter((net) => !Number.isNaN(net));
+    const validNets = examsWithNets
+      .map((exam) => Number(exam.totalNet))
+      .filter((net) => Number.isFinite(net));
 
     const examCount = validNets.length;
 
@@ -107,7 +198,9 @@ export default function StatisticsPage() {
         : 0;
 
     const netChange =
-      latestNet - firstNet;
+      examCount > 1
+        ? latestNet - firstNet
+        : 0;
 
     const completedTopics = topics.filter(
       (topic) => topic.status === "completed"
@@ -141,18 +234,24 @@ export default function StatisticsPage() {
       totalTopics,
       topicCompletionRate,
     };
-  }, [exams, topics]);
+  }, [examsWithNets, topics]);
 
-  function formatDate(date: string) {
-    if (!date) return "-";
+  function formatDate(date: string | null) {
+    if (!date) {
+      return "-";
+    }
 
-    const parsed = new Date(date);
+    const parsed = new Date(`${date}T00:00:00`);
 
     if (Number.isNaN(parsed.getTime())) {
       return date;
     }
 
-    return parsed.toLocaleDateString("tr-TR");
+    return parsed.toLocaleDateString("tr-TR", {
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+    });
   }
 
   if (loading) {
@@ -174,6 +273,8 @@ export default function StatisticsPage() {
           <Header />
 
           <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+
+            {/* HEADER */}
 
             <div className="mb-8">
               <p className="text-sm font-bold uppercase tracking-wide text-indigo-600">
@@ -205,6 +306,8 @@ export default function StatisticsPage() {
 
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
 
+                {/* SON NET */}
+
                 <div className="rounded-2xl bg-white p-5 shadow-sm">
                   <p className="text-sm font-medium text-slate-500">
                     Son Net
@@ -214,6 +317,8 @@ export default function StatisticsPage() {
                     {statistics.latestNet.toFixed(2)}
                   </p>
                 </div>
+
+                {/* ORTALAMA */}
 
                 <div className="rounded-2xl bg-white p-5 shadow-sm">
                   <p className="text-sm font-medium text-slate-500">
@@ -225,6 +330,8 @@ export default function StatisticsPage() {
                   </p>
                 </div>
 
+                {/* EN YÜKSEK */}
+
                 <div className="rounded-2xl bg-white p-5 shadow-sm">
                   <p className="text-sm font-medium text-slate-500">
                     En Yüksek Net
@@ -234,6 +341,8 @@ export default function StatisticsPage() {
                     {statistics.highestNet.toFixed(2)}
                   </p>
                 </div>
+
+                {/* DEĞİŞİM */}
 
                 <div className="rounded-2xl bg-white p-5 shadow-sm">
                   <p className="text-sm font-medium text-slate-500">
@@ -274,6 +383,8 @@ export default function StatisticsPage() {
 
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
 
+                {/* TOPLAM */}
+
                 <div className="rounded-2xl bg-white p-5 shadow-sm">
                   <p className="text-sm font-medium text-slate-500">
                     Toplam Konu
@@ -283,6 +394,8 @@ export default function StatisticsPage() {
                     {statistics.totalTopics}
                   </p>
                 </div>
+
+                {/* TAMAMLANAN */}
 
                 <div className="rounded-2xl bg-white p-5 shadow-sm">
                   <p className="text-sm font-medium text-slate-500">
@@ -294,6 +407,8 @@ export default function StatisticsPage() {
                   </p>
                 </div>
 
+                {/* ÇALIŞILIYOR */}
+
                 <div className="rounded-2xl bg-white p-5 shadow-sm">
                   <p className="text-sm font-medium text-slate-500">
                     Çalışılıyor
@@ -303,6 +418,8 @@ export default function StatisticsPage() {
                     {statistics.inProgressTopics}
                   </p>
                 </div>
+
+                {/* BAŞLANMADI */}
 
                 <div className="rounded-2xl bg-white p-5 shadow-sm">
                   <p className="text-sm font-medium text-slate-500">
@@ -368,15 +485,16 @@ export default function StatisticsPage() {
                 </div>
 
                 <button
-                  onClick={loadStatistics}
-                  className="rounded-xl bg-slate-100 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-200"
+                  type="button"
+                  onClick={() => void loadStatistics()}
+                  className="rounded-xl bg-slate-100 px-4 py-2 text-sm font-bold text-slate-700 transition hover:bg-slate-200"
                 >
                   Yenile
                 </button>
 
               </div>
 
-              {exams.length === 0 ? (
+              {examsWithNets.length === 0 ? (
 
                 <div className="mt-6 rounded-2xl border border-dashed border-slate-200 p-10 text-center">
 
@@ -389,8 +507,8 @@ export default function StatisticsPage() {
                   </h3>
 
                   <p className="mt-2 text-sm text-slate-500">
-                    Denemeler sayfasından ilk deneme sonucunu eklediğinde
-                    istatistiklerin burada görünecek.
+                    Denemeler sayfasından ilk deneme sonucunu
+                    eklediğinde istatistiklerin burada görünecek.
                   </p>
 
                 </div>
@@ -399,7 +517,7 @@ export default function StatisticsPage() {
 
                 <div className="mt-6 space-y-3">
 
-                  {exams
+                  {examsWithNets
                     .slice()
                     .reverse()
                     .map((exam) => (
@@ -411,7 +529,7 @@ export default function StatisticsPage() {
 
                         <div>
                           <h3 className="font-bold text-slate-900">
-                            {exam.exam_name}
+                            {exam.name}
                           </h3>
 
                           <p className="mt-1 text-xs text-slate-400">
@@ -425,9 +543,7 @@ export default function StatisticsPage() {
                           </p>
 
                           <p className="text-xl font-black text-indigo-600">
-                            {Number(
-                              exam.total_net || 0
-                            ).toFixed(2)}
+                            {exam.totalNet.toFixed(2)}
                           </p>
                         </div>
 

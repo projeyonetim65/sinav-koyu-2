@@ -33,9 +33,17 @@ type Goal = {
 
 type Exam = {
   id: number;
-  exam_name: string;
-  exam_date: string;
-  total_net: number;
+  name: string;
+  exam_date: string | null;
+  turkish_correct: number | null;
+  turkish_wrong: number | null;
+  social_correct: number | null;
+  social_wrong: number | null;
+  math_correct: number | null;
+  math_wrong: number | null;
+  science_correct: number | null;
+  science_wrong: number | null;
+  created_at?: string;
 };
 
 type UserTopic = {
@@ -115,277 +123,428 @@ const TOUR_STEPS: TourStep[] = [
 ];
 
 export default function DashboardPage() {
-  const [profile, setProfile] = useState<Profile | null>(null);
+  const [profile, setProfile] =
+    useState<Profile | null>(null);
 
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const [tasks, setTasks] =
+    useState<Task[]>([]);
 
-  const [goals, setGoals] = useState<Goal[]>([]);
+  const [goals, setGoals] =
+    useState<Goal[]>([]);
 
-  const [exams, setExams] = useState<Exam[]>([]);
+  const [exams, setExams] =
+    useState<Exam[]>([]);
 
-  const [topicProgress, setTopicProgress] = useState<UserTopic[]>([]);
+  const [topicProgress, setTopicProgress] =
+    useState<UserTopic[]>([]);
 
-  const [resources, setResources] = useState<Resource[]>([]);
+  const [resources, setResources] =
+    useState<Resource[]>([]);
 
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] =
+    useState(true);
 
-  const [showTour, setShowTour] = useState(false);
+  const [showTour, setShowTour] =
+    useState(false);
 
-  const [tourStep, setTourStep] = useState(0);
+  const [tourStep, setTourStep] =
+    useState(0);
 
-  const loadDashboard = useCallback(async () => {
-    setLoading(true);
+  /*
+   * ---------------------------------------------------------
+   * NET HESAPLAMA
+   * ---------------------------------------------------------
+   */
 
-    try {
-      /*
-       * ---------------------------------------------------------
-       * 1. OTURUMU KONTROL ET
-       * ---------------------------------------------------------
-       */
+  function calculateNet(
+    correct: number | null,
+    wrong: number | null
+  ) {
+    const safeCorrect =
+      Number(correct || 0);
 
-      const {
-        data: { session },
-        error: sessionError,
-      } = await supabase.auth.getSession();
+    const safeWrong =
+      Number(wrong || 0);
 
-      if (sessionError) {
-        console.error(
-          "Oturum kontrol hatası:",
-          sessionError.message,
-          sessionError
-        );
+    return safeCorrect - safeWrong / 4;
+  }
 
-        window.location.replace("/auth");
-        return;
-      }
-
-      if (!session?.user) {
-        window.location.replace("/auth");
-        return;
-      }
-
-      /*
-       * ---------------------------------------------------------
-       * 2. SESSION'I YENİLE
-       * ---------------------------------------------------------
-       */
-
-      const {
-        data: refreshedSessionData,
-        error: refreshError,
-      } = await supabase.auth.refreshSession();
-
-      if (refreshError) {
-        console.error(
-          "Oturum yenileme hatası:",
-          refreshError.message,
-          refreshError
-        );
-
-        await supabase.auth.signOut();
-
-        window.location.replace("/auth");
-        return;
-      }
-
-      const currentUser =
-        refreshedSessionData.session?.user || session.user;
-
-      if (!currentUser) {
-        window.location.replace("/auth");
-        return;
-      }
-
-      /*
-       * ---------------------------------------------------------
-       * 3. BUGÜNÜ AL
-       * ---------------------------------------------------------
-       */
-
-      const today = new Date().toISOString().split("T")[0];
-
-      /*
-       * ---------------------------------------------------------
-       * 4. DASHBOARD VERİLERİNİ ÇEK
-       * ---------------------------------------------------------
-       */
-
-      const [
-        { data: profileData, error: profileError },
-        { data: taskData, error: taskError },
-        { data: goalData, error: goalError },
-        { data: examData, error: examError },
-        { data: topicData, error: topicError },
-        { data: resourceData, error: resourceError },
-      ] = await Promise.all([
-        supabase
-          .from("profiles")
-          .select(
-            "full_name, exam_year, field, target_university, target_department, target_rank"
-          )
-          .eq("id", currentUser.id)
-          .maybeSingle(),
-
-        supabase
-          .from("tasks")
-          .select(
-            "id, title, task_date, status, duration_minutes, question_count"
-          )
-          .eq("user_id", currentUser.id)
-          .eq("task_date", today)
-          .order("id", {
-            ascending: true,
-          }),
-
-        supabase
-          .from("goals")
-          .select(
-            "id, title, target_rank, target_net, exam_type"
-          )
-          .eq("user_id", currentUser.id)
-          .order("created_at", {
-            ascending: false,
-          })
-          .limit(3),
-
-        supabase
-          .from("exams_results")
-          .select(
-            "id, exam_name, exam_date, total_net"
-          )
-          .eq("user_id", currentUser.id)
-          .order("exam_date", {
-            ascending: false,
-          })
-          .limit(5),
-
-        supabase
-          .from("user_topics")
-          .select("topic_id, status")
-          .eq("user_id", currentUser.id),
-
-        supabase
-          .from("resources")
-          .select(
-            "id, name, publisher, subject_id, resource_type, total_questions, solved_questions, status"
-          )
-          .eq("user_id", currentUser.id)
-          .order("created_at", {
-            ascending: false,
-          })
-          .limit(5),
-      ]);
-
-      /*
-       * ---------------------------------------------------------
-       * 5. HATALARI KONTROL ET
-       * ---------------------------------------------------------
-       */
-
-      if (profileError) {
-        console.error(
-          "Profil yükleme hatası:",
-          profileError.message,
-          profileError.details,
-          profileError.hint,
-          profileError.code
-        );
-      }
-
-      if (taskError) {
-        console.error(
-          "Görev yükleme hatası:",
-          taskError.message,
-          taskError.details,
-          taskError.hint,
-          taskError.code
-        );
-      }
-
-      if (goalError) {
-        console.error(
-          "Hedef yükleme hatası:",
-          goalError.message,
-          goalError.details,
-          goalError.hint,
-          goalError.code
-        );
-      }
-
-      if (examError) {
-        console.error(
-          "Deneme yükleme hatası:",
-          examError.message,
-          examError.details,
-          examError.hint,
-          examError.code
-        );
-      }
-
-      if (topicError) {
-        console.error(
-          "Konu ilerleme yükleme hatası:",
-          topicError.message,
-          topicError.details,
-          topicError.hint,
-          topicError.code
-        );
-      }
-
-      if (resourceError) {
-        console.error(
-          "Kaynak yükleme hatası:",
-          resourceError.message,
-          resourceError.details,
-          resourceError.hint,
-          resourceError.code
-        );
-      }
-
-      /*
-       * ---------------------------------------------------------
-       * 6. STATE'LERİ DOLDUR
-       * ---------------------------------------------------------
-       */
-
-      setProfile(profileData || null);
-      setTasks(taskData || []);
-      setGoals(goalData || []);
-      setExams(examData || []);
-      setTopicProgress(topicData || []);
-      setResources(resourceData || []);
-    } catch (error) {
-      console.error(
-        "Dashboard yükleme sırasında beklenmeyen hata:",
-        error
+  function calculateTotalNet(
+    exam: Exam
+  ) {
+    const turkishNet =
+      calculateNet(
+        exam.turkish_correct,
+        exam.turkish_wrong
       );
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+
+    const socialNet =
+      calculateNet(
+        exam.social_correct,
+        exam.social_wrong
+      );
+
+    const mathNet =
+      calculateNet(
+        exam.math_correct,
+        exam.math_wrong
+      );
+
+    const scienceNet =
+      calculateNet(
+        exam.science_correct,
+        exam.science_wrong
+      );
+
+    return (
+      turkishNet +
+      socialNet +
+      mathNet +
+      scienceNet
+    );
+  }
+
+  /*
+   * ---------------------------------------------------------
+   * DASHBOARD VERİLERİNİ YÜKLE
+   * ---------------------------------------------------------
+   */
+
+  const loadDashboard =
+    useCallback(async () => {
+      setLoading(true);
+
+      try {
+        /*
+         * OTURUM
+         */
+
+        const {
+          data: { session },
+          error: sessionError,
+        } =
+          await supabase.auth.getSession();
+
+        if (sessionError) {
+          console.error(
+            "Oturum kontrol hatası:",
+            sessionError.message,
+            sessionError
+          );
+
+          window.location.replace("/auth");
+          return;
+        }
+
+        if (!session?.user) {
+          window.location.replace("/auth");
+          return;
+        }
+
+        /*
+         * SESSION YENİLE
+         */
+
+        const {
+          data: refreshedSessionData,
+          error: refreshError,
+        } =
+          await supabase.auth.refreshSession();
+
+        if (refreshError) {
+          console.error(
+            "Oturum yenileme hatası:",
+            refreshError.message,
+            refreshError
+          );
+
+          await supabase.auth.signOut();
+
+          window.location.replace("/auth");
+          return;
+        }
+
+        const currentUser =
+          refreshedSessionData.session?.user ||
+          session.user;
+
+        if (!currentUser) {
+          window.location.replace("/auth");
+          return;
+        }
+
+        /*
+         * BUGÜN
+         */
+
+        const today =
+          new Date()
+            .toISOString()
+            .split("T")[0];
+
+        /*
+         * -----------------------------------------------------
+         * DASHBOARD VERİLERİ
+         * -----------------------------------------------------
+         */
+
+        const [
+          {
+            data: profileData,
+            error: profileError,
+          },
+          {
+            data: taskData,
+            error: taskError,
+          },
+          {
+            data: goalData,
+            error: goalError,
+          },
+          {
+            data: examData,
+            error: examError,
+          },
+          {
+            data: topicData,
+            error: topicError,
+          },
+          {
+            data: resourceData,
+            error: resourceError,
+          },
+        ] = await Promise.all([
+          supabase
+            .from("profiles")
+            .select(
+              "full_name, exam_year, field, target_university, target_department, target_rank"
+            )
+            .eq(
+              "id",
+              currentUser.id
+            )
+            .maybeSingle(),
+
+          supabase
+            .from("tasks")
+            .select(
+              "id, title, task_date, status, duration_minutes, question_count"
+            )
+            .eq(
+              "user_id",
+              currentUser.id
+            )
+            .eq(
+              "task_date",
+              today
+            )
+            .order("id", {
+              ascending: true,
+            }),
+
+          supabase
+            .from("goals")
+            .select(
+              "id, title, target_rank, target_net, exam_type"
+            )
+            .eq(
+              "user_id",
+              currentUser.id
+            )
+            .order(
+              "created_at",
+              {
+                ascending: false,
+              }
+            )
+            .limit(3),
+
+          /*
+           * YENİ DENEME SİSTEMİ
+           *
+           * Artık exams_results kullanılmıyor.
+           * Ana kaynak exams tablosu.
+           */
+
+          supabase
+            .from("exams")
+            .select(
+              "id, name, exam_date, turkish_correct, turkish_wrong, social_correct, social_wrong, math_correct, math_wrong, science_correct, science_wrong, created_at"
+            )
+            .eq(
+              "user_id",
+              currentUser.id
+            )
+            .order(
+              "exam_date",
+              {
+                ascending: false,
+                nullsFirst: false,
+              }
+            )
+            .order(
+              "created_at",
+              {
+                ascending: false,
+              }
+            )
+            .limit(5),
+
+          supabase
+            .from("user_topics")
+            .select(
+              "topic_id, status"
+            )
+            .eq(
+              "user_id",
+              currentUser.id
+            ),
+
+          supabase
+            .from("resources")
+            .select(
+              "id, name, publisher, subject_id, resource_type, total_questions, solved_questions, status"
+            )
+            .eq(
+              "user_id",
+              currentUser.id
+            )
+            .order(
+              "created_at",
+              {
+                ascending: false,
+              }
+            )
+            .limit(5),
+        ]);
+
+        /*
+         * -----------------------------------------------------
+         * HATALAR
+         * -----------------------------------------------------
+         */
+
+        if (profileError) {
+          console.error(
+            "Profil yükleme hatası:",
+            profileError.message,
+            profileError.details,
+            profileError.hint,
+            profileError.code
+          );
+        }
+
+        if (taskError) {
+          console.error(
+            "Görev yükleme hatası:",
+            taskError.message,
+            taskError.details,
+            taskError.hint,
+            taskError.code
+          );
+        }
+
+        if (goalError) {
+          console.error(
+            "Hedef yükleme hatası:",
+            goalError.message,
+            goalError.details,
+            goalError.hint,
+            goalError.code
+          );
+        }
+
+        if (examError) {
+          console.error(
+            "Deneme yükleme hatası:",
+            examError.message,
+            examError.details,
+            examError.hint,
+            examError.code
+          );
+        }
+
+        if (topicError) {
+          console.error(
+            "Konu ilerleme yükleme hatası:",
+            topicError.message,
+            topicError.details,
+            topicError.hint,
+            topicError.code
+          );
+        }
+
+        if (resourceError) {
+          console.error(
+            "Kaynak yükleme hatası:",
+            resourceError.message,
+            resourceError.details,
+            resourceError.hint,
+            resourceError.code
+          );
+        }
+
+        /*
+         * -----------------------------------------------------
+         * STATE
+         * -----------------------------------------------------
+         */
+
+        setProfile(
+          profileData || null
+        );
+
+        setTasks(
+          taskData || []
+        );
+
+        setGoals(
+          goalData || []
+        );
+
+        setExams(
+          examData || []
+        );
+
+        setTopicProgress(
+          topicData || []
+        );
+
+        setResources(
+          resourceData || []
+        );
+      } catch (error) {
+        console.error(
+          "Dashboard yükleme sırasında beklenmeyen hata:",
+          error
+        );
+      } finally {
+        setLoading(false);
+      }
+    }, []);
 
   /*
    * ---------------------------------------------------------
    * DASHBOARD'I YÜKLE
    * ---------------------------------------------------------
-   *
-   * React 19'un set-state-in-effect lint kuralı nedeniyle
-   * loadDashboard doğrudan effect gövdesinde çağrılmıyor.
    */
 
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      void loadDashboard();
-    }, 0);
+    const timer =
+      window.setTimeout(() => {
+        void loadDashboard();
+      }, 0);
 
     return () => {
-      window.clearTimeout(timer);
+      window.clearTimeout(
+        timer
+      );
     };
   }, [loadDashboard]);
 
   /*
    * ---------------------------------------------------------
-   * İLK GİRİŞ TANITIM TURUNU KONTROL ET
+   * İLK GİRİŞ TANITIM TURU
    * ---------------------------------------------------------
    */
 
@@ -395,9 +554,10 @@ export default function DashboardPage() {
     }
 
     try {
-      const completed = window.localStorage.getItem(
-        TOUR_STORAGE_KEY
-      );
+      const completed =
+        window.localStorage.getItem(
+          TOUR_STORAGE_KEY
+        );
 
       if (completed !== "true") {
         setTourStep(0);
@@ -432,12 +592,17 @@ export default function DashboardPage() {
   }
 
   function nextTourStep() {
-    if (tourStep >= TOUR_STEPS.length - 1) {
+    if (
+      tourStep >=
+      TOUR_STEPS.length - 1
+    ) {
       completeTour();
       return;
     }
 
-    setTourStep((current) => current + 1);
+    setTourStep(
+      (current) => current + 1
+    );
   }
 
   function previousTourStep() {
@@ -445,31 +610,51 @@ export default function DashboardPage() {
       return;
     }
 
-    setTourStep((current) => current - 1);
+    setTourStep(
+      (current) => current - 1
+    );
   }
 
   function skipTour() {
     completeTour();
   }
 
-  async function toggleTask(task: Task) {
-    const completed = task.status === "completed";
+  /*
+   * ---------------------------------------------------------
+   * GÖREV TAMAMLAMA
+   * ---------------------------------------------------------
+   */
 
-    const newStatus = completed
-      ? "pending"
-      : "completed";
+  async function toggleTask(
+    task: Task
+  ) {
+    const completed =
+      task.status ===
+      "completed";
 
-    const completedAt = completed
-      ? null
-      : new Date().toISOString();
+    const newStatus =
+      completed
+        ? "pending"
+        : "completed";
 
-    const { error } = await supabase
-      .from("tasks")
-      .update({
-        status: newStatus,
-        completed_at: completedAt,
-      })
-      .eq("id", task.id);
+    const completedAt =
+      completed
+        ? null
+        : new Date().toISOString();
+
+    const { error } =
+      await supabase
+        .from("tasks")
+        .update({
+          status:
+            newStatus,
+          completed_at:
+            completedAt,
+        })
+        .eq(
+          "id",
+          task.id
+        );
 
     if (error) {
       console.error(
@@ -483,15 +668,19 @@ export default function DashboardPage() {
       return;
     }
 
-    setTasks((current) =>
-      current.map((item) =>
-        item.id === task.id
-          ? {
-              ...item,
-              status: newStatus,
-            }
-          : item
-      )
+    setTasks(
+      (current) =>
+        current.map(
+          (item) =>
+            item.id ===
+            task.id
+              ? {
+                  ...item,
+                  status:
+                    newStatus,
+                }
+              : item
+        )
     );
   }
 
@@ -501,59 +690,94 @@ export default function DashboardPage() {
    * ---------------------------------------------------------
    */
 
-  const completedTasks = tasks.filter(
-    (task) => task.status === "completed"
-  ).length;
+  const completedTasks =
+    tasks.filter(
+      (task) =>
+        task.status ===
+        "completed"
+    ).length;
 
   const taskProgress =
     tasks.length > 0
       ? Math.round(
-          (completedTasks / tasks.length) * 100
+          (completedTasks /
+            tasks.length) *
+            100
         )
       : 0;
 
-  const completedTopics = topicProgress.filter(
-    (topic) => topic.status === "completed"
-  ).length;
+  const completedTopics =
+    topicProgress.filter(
+      (topic) =>
+        topic.status ===
+        "completed"
+    ).length;
 
-  const inProgressTopics = topicProgress.filter(
-    (topic) => topic.status === "in_progress"
-  ).length;
+  const inProgressTopics =
+    topicProgress.filter(
+      (topic) =>
+        topic.status ===
+        "in_progress"
+    ).length;
 
-  const totalTopics = topicProgress.length;
+  const totalTopics =
+    topicProgress.length;
 
   const topicPercentage =
     totalTopics > 0
       ? Math.round(
-          (completedTopics / totalTopics) * 100
+          (completedTopics /
+            totalTopics) *
+            100
         )
       : 0;
 
+  /*
+   * DENEME NETLERİ
+   */
+
   const latestExam =
-    exams.length > 0 ? exams[0] : null;
+    exams.length > 0
+      ? exams[0]
+      : null;
 
   const previousExam =
-    exams.length > 1 ? exams[1] : null;
+    exams.length > 1
+      ? exams[1]
+      : null;
 
-  const latestNet = latestExam
-    ? Number(latestExam.total_net)
-    : 0;
+  const latestNet =
+    latestExam
+      ? calculateTotalNet(
+          latestExam
+        )
+      : 0;
 
   const previousNet =
     previousExam
-      ? Number(previousExam.total_net)
+      ? calculateTotalNet(
+          previousExam
+        )
       : null;
 
   const netChange =
     previousNet !== null
-      ? latestNet - previousNet
+      ? latestNet -
+        previousNet
       : 0;
+
+  /*
+   * KAYNAK SORULARI
+   */
 
   const totalResourceQuestions =
     resources.reduce(
       (total, resource) =>
         total +
-        Number(resource.total_questions || 0),
+        Number(
+          resource.total_questions ||
+            0
+        ),
       0
     );
 
@@ -561,12 +785,16 @@ export default function DashboardPage() {
     resources.reduce(
       (total, resource) =>
         total +
-        Number(resource.solved_questions || 0),
+        Number(
+          resource.solved_questions ||
+            0
+        ),
       0
     );
 
   const resourcePercentage =
-    totalResourceQuestions > 0
+    totalResourceQuestions >
+    0
       ? Math.round(
           (solvedResourceQuestions /
             totalResourceQuestions) *
@@ -575,10 +803,13 @@ export default function DashboardPage() {
       : 0;
 
   const firstName =
-    profile?.full_name?.split(" ")[0] ||
+    profile?.full_name?.split(
+      " "
+    )[0] ||
     "Öğrenci";
 
-  const currentTour = TOUR_STEPS[tourStep];
+  const currentTour =
+    TOUR_STEPS[tourStep];
 
   /*
    * ---------------------------------------------------------
@@ -600,6 +831,12 @@ export default function DashboardPage() {
     );
   }
 
+  /*
+   * ---------------------------------------------------------
+   * SAYFA
+   * ---------------------------------------------------------
+   */
+
   return (
     <main className="min-h-screen bg-slate-50">
       <div className="flex min-h-screen">
@@ -618,27 +855,37 @@ export default function DashboardPage() {
               <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
                 <div>
                   <p className="text-sm font-semibold text-indigo-100">
-                    YKS {profile?.exam_year || 2027}
+                    YKS{" "}
+                    {profile?.exam_year ||
+                      2027}
                   </p>
 
                   <h1 className="mt-2 text-3xl font-black sm:text-4xl">
-                    Hoş geldin, {firstName}! 👋
+                    Hoş geldin,{" "}
+                    {firstName}! 👋
                   </h1>
 
                   <p className="mt-3 max-w-2xl text-sm leading-6 text-indigo-100 sm:text-base">
-                    Bugün küçük bir adım daha at.
-                    Düzenli çalıştığında hedefin
-                    sandığından daha yakın.
+                    Bugün küçük bir
+                    adım daha at.
+                    Düzenli
+                    çalıştığında
+                    hedefin
+                    sandığından
+                    daha yakın.
                   </p>
                 </div>
 
                 <button
                   onClick={() =>
-                    window.location.replace("/tasks")
+                    window.location.replace(
+                      "/tasks"
+                    )
                   }
                   className="rounded-xl bg-white px-5 py-3 text-sm font-bold text-indigo-600 shadow-sm transition hover:bg-indigo-50"
                 >
-                  Bugünkü Görevler →
+                  Bugünkü
+                  Görevler →
                 </button>
               </div>
             </section>
@@ -654,7 +901,8 @@ export default function DashboardPage() {
               <div className="rounded-2xl bg-white p-5 shadow-sm">
                 <div className="flex items-center justify-between">
                   <p className="text-sm font-semibold text-slate-500">
-                    Bugünkü Görevler
+                    Bugünkü
+                    Görevler
                   </p>
 
                   <span className="rounded-xl bg-indigo-50 px-3 py-2 text-lg">
@@ -663,7 +911,11 @@ export default function DashboardPage() {
                 </div>
 
                 <p className="mt-4 text-3xl font-black text-slate-900">
-                  {completedTasks}/{tasks.length}
+                  {
+                    completedTasks
+                  }
+                  /
+                  {tasks.length}
                 </p>
 
                 <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-100">
@@ -676,7 +928,8 @@ export default function DashboardPage() {
                 </div>
 
                 <p className="mt-2 text-xs text-slate-400">
-                  %{taskProgress} tamamlandı
+                  %{taskProgress}{" "}
+                  tamamlandı
                 </p>
               </div>
 
@@ -685,7 +938,8 @@ export default function DashboardPage() {
               <div className="rounded-2xl bg-white p-5 shadow-sm">
                 <div className="flex items-center justify-between">
                   <p className="text-sm font-semibold text-slate-500">
-                    Konu İlerlemesi
+                    Konu
+                    İlerlemesi
                   </p>
 
                   <span className="rounded-xl bg-green-50 px-3 py-2 text-lg">
@@ -698,8 +952,14 @@ export default function DashboardPage() {
                 </p>
 
                 <p className="mt-2 text-xs text-slate-400">
-                  {completedTopics} tamamlandı ·{" "}
-                  {inProgressTopics} çalışılıyor
+                  {
+                    completedTopics
+                  }{" "}
+                  tamamlandı ·{" "}
+                  {
+                    inProgressTopics
+                  }{" "}
+                  çalışılıyor
                 </p>
               </div>
 
@@ -717,23 +977,36 @@ export default function DashboardPage() {
                 </div>
 
                 <p className="mt-4 text-3xl font-black text-slate-900">
-                  {latestNet.toFixed(2)}
+                  {latestNet.toFixed(
+                    2
+                  )}
                 </p>
 
-                {previousNet !== null ? (
+                {previousNet !==
+                null ? (
                   <p
                     className={`mt-2 text-xs font-bold ${
-                      netChange >= 0
+                      netChange >=
+                      0
                         ? "text-green-600"
                         : "text-red-500"
                     }`}
                   >
-                    {netChange >= 0 ? "+" : ""}
-                    {netChange.toFixed(2)} son denemeye göre
+                    {netChange >=
+                    0
+                      ? "+"
+                      : ""}
+                    {netChange.toFixed(
+                      2
+                    )}{" "}
+                    son denemeye
+                    göre
                   </p>
                 ) : (
                   <p className="mt-2 text-xs text-slate-400">
-                    Henüz karşılaştırma yok
+                    Henüz
+                    karşılaştırma
+                    yok
                   </p>
                 )}
               </div>
@@ -743,7 +1016,8 @@ export default function DashboardPage() {
               <div className="rounded-2xl bg-white p-5 shadow-sm">
                 <div className="flex items-center justify-between">
                   <p className="text-sm font-semibold text-slate-500">
-                    Soru İlerlemesi
+                    Soru
+                    İlerlemesi
                   </p>
 
                   <span className="rounded-xl bg-purple-50 px-3 py-2 text-lg">
@@ -756,8 +1030,14 @@ export default function DashboardPage() {
                 </p>
 
                 <p className="mt-2 text-xs text-slate-400">
-                  {solvedResourceQuestions.toLocaleString("tr-TR")} /{" "}
-                  {totalResourceQuestions.toLocaleString("tr-TR")} soru
+                  {solvedResourceQuestions.toLocaleString(
+                    "tr-TR"
+                  )}{" "}
+                  /{" "}
+                  {totalResourceQuestions.toLocaleString(
+                    "tr-TR"
+                  )}{" "}
+                  soru
                 </p>
               </div>
             </section>
@@ -774,17 +1054,21 @@ export default function DashboardPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <h2 className="text-xl font-black text-slate-900">
-                      Bugünkü Görevler
+                      Bugünkü
+                      Görevler
                     </h2>
 
                     <p className="mt-1 text-sm text-slate-500">
-                      Bugün yapman gerekenler
+                      Bugün yapman
+                      gerekenler
                     </p>
                   </div>
 
                   <button
                     onClick={() =>
-                      window.location.replace("/tasks")
+                      window.location.replace(
+                        "/tasks"
+                      )
                     }
                     className="rounded-xl bg-slate-100 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-200"
                   >
@@ -792,92 +1076,127 @@ export default function DashboardPage() {
                   </button>
                 </div>
 
-                {tasks.length === 0 ? (
+                {tasks.length ===
+                0 ? (
                   <div className="mt-6 rounded-2xl border border-dashed border-slate-200 p-8 text-center">
-                    <div className="text-4xl">🎯</div>
+                    <div className="text-4xl">
+                      🎯
+                    </div>
 
                     <h3 className="mt-3 font-bold text-slate-900">
-                      Bugün için görev yok
+                      Bugün için
+                      görev yok
                     </h3>
 
                     <p className="mt-2 text-sm text-slate-500">
-                      Çalışma planını oluştur ve
-                      ilk görevini ekle.
+                      Çalışma
+                      planını
+                      oluştur ve
+                      ilk görevini
+                      ekle.
                     </p>
 
                     <button
                       onClick={() =>
-                        window.location.replace("/tasks")
+                        window.location.replace(
+                          "/tasks"
+                        )
                       }
                       className="mt-4 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-indigo-700"
                     >
-                      Görev Oluştur
+                      Görev
+                      Oluştur
                     </button>
                   </div>
                 ) : (
                   <div className="mt-5 space-y-3">
-                    {tasks.slice(0, 5).map((task) => {
-                      const completed =
-                        task.status === "completed";
+                    {tasks
+                      .slice(0, 5)
+                      .map(
+                        (
+                          task
+                        ) => {
+                          const completed =
+                            task.status ===
+                            "completed";
 
-                      return (
-                        <div
-                          key={task.id}
-                          className="flex items-center gap-3 rounded-xl border border-slate-100 p-4"
-                        >
-                          <button
-                            onClick={() =>
-                              toggleTask(task)
-                            }
-                            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl font-black ${
-                              completed
-                                ? "bg-green-100 text-green-600"
-                                : "bg-indigo-50 text-indigo-600"
-                            }`}
-                          >
-                            {completed ? "✓" : "○"}
-                          </button>
-
-                          <div className="min-w-0 flex-1">
-                            <p
-                              className={`font-bold ${
-                                completed
-                                  ? "text-slate-400 line-through"
-                                  : "text-slate-900"
-                              }`}
+                          return (
+                            <div
+                              key={
+                                task.id
+                              }
+                              className="flex items-center gap-3 rounded-xl border border-slate-100 p-4"
                             >
-                              {task.title}
-                            </p>
+                              <button
+                                onClick={() =>
+                                  toggleTask(
+                                    task
+                                  )
+                                }
+                                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl font-black ${
+                                  completed
+                                    ? "bg-green-100 text-green-600"
+                                    : "bg-indigo-50 text-indigo-600"
+                                }`}
+                              >
+                                {completed
+                                  ? "✓"
+                                  : "○"}
+                              </button>
 
-                            <div className="mt-1 flex flex-wrap gap-3 text-xs text-slate-400">
-                              {task.duration_minutes !== null && (
-                                <span>
-                                  ⏱ {task.duration_minutes} dk
-                                </span>
-                              )}
+                              <div className="min-w-0 flex-1">
+                                <p
+                                  className={`font-bold ${
+                                    completed
+                                      ? "text-slate-400 line-through"
+                                      : "text-slate-900"
+                                  }`}
+                                >
+                                  {
+                                    task.title
+                                  }
+                                </p>
 
-                              {task.question_count !== null && (
-                                <span>
-                                  📝 {task.question_count} soru
-                                </span>
-                              )}
+                                <div className="mt-1 flex flex-wrap gap-3 text-xs text-slate-400">
+                                  {task.duration_minutes !==
+                                    null && (
+                                    <span>
+                                      ⏱{" "}
+                                      {
+                                        task.duration_minutes
+                                      }{" "}
+                                      dk
+                                    </span>
+                                  )}
+
+                                  {task.question_count !==
+                                    null && (
+                                    <span>
+                                      📝{" "}
+                                      {
+                                        task.question_count
+                                      }{" "}
+                                      soru
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+
+                              <span
+                                className={`hidden rounded-full px-3 py-1 text-xs font-bold sm:block ${
+                                  completed
+                                    ? "bg-green-100 text-green-600"
+                                    : "bg-amber-100 text-amber-600"
+                                }`}
+                              >
+                                {completed
+                                  ? "Tamamlandı"
+                                  : "Bekliyor"}
+                              </span>
                             </div>
-                          </div>
-
-                          <span
-                            className={`hidden rounded-full px-3 py-1 text-xs font-bold sm:block ${
-                              completed
-                                ? "bg-green-100 text-green-600"
-                                : "bg-amber-100 text-amber-600"
-                            }`}
-                          >
-                            {completed
-                              ? "Tamamlandı"
-                              : "Bekliyor"}
-                          </span>
-                        </div>
-                      );
-                    })}
+                          );
+                        }
+                      )}
                   </div>
                 )}
               </div>
@@ -892,13 +1211,17 @@ export default function DashboardPage() {
                     </h2>
 
                     <p className="mt-1 text-sm text-slate-500">
-                      Ulaşmak istediğin hedefler
+                      Ulaşmak
+                      istediğin
+                      hedefler
                     </p>
                   </div>
 
                   <button
                     onClick={() =>
-                      window.location.replace("/goals")
+                      window.location.replace(
+                        "/goals"
+                      )
                     }
                     className="rounded-xl bg-slate-100 px-3 py-2 text-sm font-bold text-slate-700 hover:bg-slate-200"
                   >
@@ -906,17 +1229,23 @@ export default function DashboardPage() {
                   </button>
                 </div>
 
-                {goals.length === 0 ? (
+                {goals.length ===
+                0 ? (
                   <div className="mt-6 rounded-xl border border-dashed border-slate-200 p-6 text-center">
-                    <div className="text-3xl">🎯</div>
+                    <div className="text-3xl">
+                      🎯
+                    </div>
 
                     <p className="mt-3 text-sm font-bold text-slate-900">
-                      Henüz hedef yok
+                      Henüz hedef
+                      yok
                     </p>
 
                     <button
                       onClick={() =>
-                        window.location.replace("/goals")
+                        window.location.replace(
+                          "/goals"
+                        )
                       }
                       className="mt-4 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-bold text-white"
                     >
@@ -925,50 +1254,62 @@ export default function DashboardPage() {
                   </div>
                 ) : (
                   <div className="mt-5 space-y-3">
-                    {goals.map((goal) => (
-                      <div
-                        key={goal.id}
-                        className="rounded-xl border border-slate-100 p-4"
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <h3 className="font-bold text-slate-900">
-                            {goal.title}
-                          </h3>
+                    {goals.map(
+                      (
+                        goal
+                      ) => (
+                        <div
+                          key={
+                            goal.id
+                          }
+                          className="rounded-xl border border-slate-100 p-4"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <h3 className="font-bold text-slate-900">
+                              {
+                                goal.title
+                              }
+                            </h3>
 
-                          <span className="shrink-0 rounded-full bg-indigo-50 px-2.5 py-1 text-[10px] font-bold text-indigo-600">
-                            {goal.exam_type}
-                          </span>
-                        </div>
-
-                        <div className="mt-3 grid grid-cols-2 gap-2">
-                          <div className="rounded-lg bg-slate-50 p-3">
-                            <p className="text-[10px] text-slate-400">
-                              Sıralama
-                            </p>
-
-                            <p className="mt-1 text-sm font-black">
-                              {goal.target_rank !== null
-                                ? goal.target_rank.toLocaleString(
-                                    "tr-TR"
-                                  )
-                                : "-"}
-                            </p>
+                            <span className="shrink-0 rounded-full bg-indigo-50 px-2.5 py-1 text-[10px] font-bold text-indigo-600">
+                              {
+                                goal.exam_type
+                              }
+                            </span>
                           </div>
 
-                          <div className="rounded-lg bg-slate-50 p-3">
-                            <p className="text-[10px] text-slate-400">
-                              Net
-                            </p>
+                          <div className="mt-3 grid grid-cols-2 gap-2">
+                            <div className="rounded-lg bg-slate-50 p-3">
+                              <p className="text-[10px] text-slate-400">
+                                Sıralama
+                              </p>
 
-                            <p className="mt-1 text-sm font-black">
-                              {goal.target_net !== null
-                                ? goal.target_net
-                                : "-"}
-                            </p>
+                              <p className="mt-1 text-sm font-black">
+                                {goal.target_rank !==
+                                null
+                                  ? goal.target_rank.toLocaleString(
+                                      "tr-TR"
+                                    )
+                                  : "-"}
+                              </p>
+                            </div>
+
+                            <div className="rounded-lg bg-slate-50 p-3">
+                              <p className="text-[10px] text-slate-400">
+                                Net
+                              </p>
+
+                              <p className="mt-1 text-sm font-black">
+                                {goal.target_net !==
+                                null
+                                  ? goal.target_net
+                                  : "-"}
+                              </p>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      )
+                    )}
                   </div>
                 )}
               </div>
@@ -990,13 +1331,16 @@ export default function DashboardPage() {
                     </h2>
 
                     <p className="mt-1 text-sm text-slate-500">
-                      Net gelişimini takip et
+                      Net gelişimini
+                      takip et
                     </p>
                   </div>
 
                   <button
                     onClick={() =>
-                      window.location.replace("/exams")
+                      window.location.replace(
+                        "/exams"
+                      )
                     }
                     className="rounded-xl bg-slate-100 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-200"
                   >
@@ -1004,17 +1348,23 @@ export default function DashboardPage() {
                   </button>
                 </div>
 
-                {exams.length === 0 ? (
+                {exams.length ===
+                0 ? (
                   <div className="mt-6 rounded-xl border border-dashed border-slate-200 p-8 text-center">
-                    <div className="text-3xl">📈</div>
+                    <div className="text-3xl">
+                      📈
+                    </div>
 
                     <p className="mt-3 text-sm font-bold text-slate-900">
-                      Henüz deneme eklenmemiş
+                      Henüz deneme
+                      eklenmemiş
                     </p>
 
                     <button
                       onClick={() =>
-                        window.location.replace("/exams")
+                        window.location.replace(
+                          "/exams"
+                        )
                       }
                       className="mt-4 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-bold text-white"
                     >
@@ -1023,26 +1373,44 @@ export default function DashboardPage() {
                   </div>
                 ) : (
                   <div className="mt-5 space-y-3">
-                    {exams.map((exam) => (
-                      <div
-                        key={exam.id}
-                        className="flex items-center justify-between rounded-xl border border-slate-100 p-4"
-                      >
-                        <div>
-                          <p className="font-bold text-slate-900">
-                            {exam.exam_name}
-                          </p>
+                    {exams.map(
+                      (
+                        exam
+                      ) => {
+                        const totalNet =
+                          calculateTotalNet(
+                            exam
+                          );
 
-                          <p className="mt-1 text-xs text-slate-400">
-                            {exam.exam_date}
-                          </p>
-                        </div>
+                        return (
+                          <div
+                            key={
+                              exam.id
+                            }
+                            className="flex items-center justify-between rounded-xl border border-slate-100 p-4"
+                          >
+                            <div>
+                              <p className="font-bold text-slate-900">
+                                {
+                                  exam.name
+                                }
+                              </p>
 
-                        <p className="text-xl font-black text-indigo-600">
-                          {Number(exam.total_net).toFixed(2)}
-                        </p>
-                      </div>
-                    ))}
+                              <p className="mt-1 text-xs text-slate-400">
+                                {exam.exam_date ||
+                                  "-"}
+                              </p>
+                            </div>
+
+                            <p className="text-xl font-black text-indigo-600">
+                              {totalNet.toFixed(
+                                2
+                              )}
+                            </p>
+                          </div>
+                        );
+                      }
+                    )}
                   </div>
                 )}
               </div>
@@ -1057,13 +1425,17 @@ export default function DashboardPage() {
                     </h2>
 
                     <p className="mt-1 text-sm text-slate-500">
-                      Çözdüğün soruları takip et
+                      Çözdüğün
+                      soruları
+                      takip et
                     </p>
                   </div>
 
                   <button
                     onClick={() =>
-                      window.location.replace("/resources")
+                      window.location.replace(
+                        "/resources"
+                      )
                     }
                     className="rounded-xl bg-slate-100 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-200"
                   >
@@ -1071,17 +1443,23 @@ export default function DashboardPage() {
                   </button>
                 </div>
 
-                {resources.length === 0 ? (
+                {resources.length ===
+                0 ? (
                   <div className="mt-6 rounded-xl border border-dashed border-slate-200 p-8 text-center">
-                    <div className="text-3xl">📚</div>
+                    <div className="text-3xl">
+                      📚
+                    </div>
 
                     <p className="mt-3 text-sm font-bold text-slate-900">
-                      Henüz kaynak eklenmemiş
+                      Henüz kaynak
+                      eklenmemiş
                     </p>
 
                     <button
                       onClick={() =>
-                        window.location.replace("/resources")
+                        window.location.replace(
+                          "/resources"
+                        )
                       }
                       className="mt-4 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-bold text-white"
                     >
@@ -1090,64 +1468,89 @@ export default function DashboardPage() {
                   </div>
                 ) : (
                   <div className="mt-5 space-y-3">
-                    {resources.map((resource) => {
-                      const total = Number(
-                        resource.total_questions || 0
-                      );
+                    {resources.map(
+                      (
+                        resource
+                      ) => {
+                        const total =
+                          Number(
+                            resource.total_questions ||
+                              0
+                          );
 
-                      const solved = Number(
-                        resource.solved_questions || 0
-                      );
+                        const solved =
+                          Number(
+                            resource.solved_questions ||
+                              0
+                          );
 
-                      const percentage =
-                        total > 0
-                          ? Math.min(
-                              100,
-                              Math.round(
-                                (solved / total) * 100
+                        const percentage =
+                          total > 0
+                            ? Math.min(
+                                100,
+                                Math.round(
+                                  (solved /
+                                    total) *
+                                    100
+                                )
                               )
-                            )
-                          : 0;
+                            : 0;
 
-                      return (
-                        <div
-                          key={resource.id}
-                          className="rounded-xl border border-slate-100 p-4"
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                              <p className="truncate font-bold text-slate-900">
-                                {resource.name}
-                              </p>
-
-                              {resource.publisher && (
-                                <p className="mt-1 text-xs text-slate-400">
-                                  {resource.publisher}
+                        return (
+                          <div
+                            key={
+                              resource.id
+                            }
+                            className="rounded-xl border border-slate-100 p-4"
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <p className="truncate font-bold text-slate-900">
+                                  {
+                                    resource.name
+                                  }
                                 </p>
-                              )}
+
+                                {resource.publisher && (
+                                  <p className="mt-1 text-xs text-slate-400">
+                                    {
+                                      resource.publisher
+                                    }
+                                  </p>
+                                )}
+                              </div>
+
+                              <span className="shrink-0 text-sm font-black text-indigo-600">
+                                %
+                                {
+                                  percentage
+                                }
+                              </span>
                             </div>
 
-                            <span className="shrink-0 text-sm font-black text-indigo-600">
-                              %{percentage}
-                            </span>
-                          </div>
+                            <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
+                              <div
+                                className="h-full rounded-full bg-indigo-600 transition-all"
+                                style={{
+                                  width: `${percentage}%`,
+                                }}
+                              />
+                            </div>
 
-                          <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
-                            <div
-                              className="h-full rounded-full bg-indigo-600 transition-all"
-                              style={{
-                                width: `${percentage}%`,
-                              }}
-                            />
+                            <p className="mt-2 text-xs text-slate-400">
+                              {solved.toLocaleString(
+                                "tr-TR"
+                              )}{" "}
+                              /{" "}
+                              {total.toLocaleString(
+                                "tr-TR"
+                              )}{" "}
+                              soru
+                            </p>
                           </div>
-
-                          <p className="mt-2 text-xs text-slate-400">
-                            {solved.toLocaleString("tr-TR")} /{" "}
-                            {total.toLocaleString("tr-TR")} soru
-                          </p>
-                        </div>
-                      );
-                    })}
+                        );
+                      }
+                    )}
                   </div>
                 )}
               </div>
@@ -1201,7 +1604,9 @@ export default function DashboardPage() {
 
               <button
                 onClick={() =>
-                  window.location.replace("/pomodoro")
+                  window.location.replace(
+                    "/pomodoro"
+                  )
                 }
                 className="group rounded-3xl bg-gradient-to-br from-orange-500 to-red-500 p-6 text-left text-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
               >
@@ -1216,9 +1621,11 @@ export default function DashboardPage() {
                     </h2>
 
                     <p className="mt-2 max-w-md text-sm leading-6 text-orange-50">
-                      Odaklanma süreni yönet,
-                      Pomodoro tamamla ve XP
-                      kazan.
+                      Odaklanma süreni
+                      yönet,
+                      Pomodoro
+                      tamamla ve
+                      XP kazan.
                     </p>
                   </div>
 
@@ -1230,11 +1637,13 @@ export default function DashboardPage() {
                 <div className="mt-6 flex items-center justify-between rounded-2xl bg-white/10 p-4">
                   <div>
                     <p className="text-xs font-semibold text-orange-100">
-                      ODAKLANMAYA HAZIR MISIN?
+                      ODAKLANMAYA
+                      HAZIR MISIN?
                     </p>
 
                     <p className="mt-1 text-sm font-black">
-                      Pomodoro&apos;yu başlat
+                      Pomodoro&apos;yu
+                      başlat
                     </p>
                   </div>
 
@@ -1248,7 +1657,9 @@ export default function DashboardPage() {
 
               <button
                 onClick={() =>
-                  window.location.replace("/village")
+                  window.location.replace(
+                    "/village"
+                  )
                 }
                 className="group rounded-3xl bg-gradient-to-br from-emerald-600 to-teal-600 p-6 text-left text-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
               >
@@ -1263,9 +1674,12 @@ export default function DashboardPage() {
                     </h2>
 
                     <p className="mt-2 max-w-md text-sm leading-6 text-emerald-50">
-                      Kazandığın XP ile kendi
-                      yerleşimini geliştir ve
-                      zamanla büyüt.
+                      Kazandığın XP
+                      ile kendi
+                      yerleşimini
+                      geliştir ve
+                      zamanla
+                      büyüt.
                     </p>
                   </div>
 
@@ -1277,7 +1691,8 @@ export default function DashboardPage() {
                 <div className="mt-6 flex items-center justify-between rounded-2xl bg-white/10 p-4">
                   <div>
                     <p className="text-xs font-semibold text-emerald-100">
-                      YERLEŞİMİNİ GELİŞTİR
+                      YERLEŞİMİNİ
+                      GELİŞTİR
                     </p>
 
                     <p className="mt-1 text-sm font-black">
@@ -1298,86 +1713,136 @@ export default function DashboardPage() {
 
             <section className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
 
-              {/* TOPICS */}
-
               <button
                 onClick={() =>
-                  window.location.replace("/topics")
+                  window.location.replace(
+                    "/topics"
+                  )
                 }
                 className="rounded-2xl bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
               >
-                <span className="text-2xl">📚</span>
+                <span className="text-2xl">
+                  📚
+                </span>
 
                 <h3 className="mt-3 font-black">
                   Konular
                 </h3>
 
                 <p className="mt-1 text-xs text-slate-500">
-                  Konu ilerlemeni takip et
+                  Konu ilerlemeni
+                  takip et
                 </p>
               </button>
 
-              {/* STATISTICS */}
-
               <button
                 onClick={() =>
-                  window.location.replace("/statistics")
+                  window.location.replace(
+                    "/statistics"
+                  )
                 }
                 className="rounded-2xl bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
               >
-                <span className="text-2xl">📊</span>
+                <span className="text-2xl">
+                  📊
+                </span>
 
                 <h3 className="mt-3 font-black">
                   İstatistikler
                 </h3>
 
                 <p className="mt-1 text-xs text-slate-500">
-                  Gelişimini analiz et
+                  Gelişimini analiz
+                  et
                 </p>
               </button>
 
-              {/* PLANS */}
-
               <button
                 onClick={() =>
-                  window.location.replace("/plans")
+                  window.location.replace(
+                    "/plans"
+                  )
                 }
                 className="rounded-2xl bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
               >
-                <span className="text-2xl">🗓️</span>
+                <span className="text-2xl">
+                  🗓️
+                </span>
 
                 <h3 className="mt-3 font-black">
                   Planlar
                 </h3>
 
                 <p className="mt-1 text-xs text-slate-500">
-                  Çalışma planını yönet
+                  Çalışma planını
+                  yönet
                 </p>
               </button>
 
-              {/* PROFILE */}
-
               <button
                 onClick={() =>
-                  window.location.replace("/profile")
+                  window.location.replace(
+                    "/profile"
+                  )
                 }
                 className="rounded-2xl bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
               >
-                <span className="text-2xl">⚙️</span>
+                <span className="text-2xl">
+                  ⚙️
+                </span>
 
                 <h3 className="mt-3 font-black">
                   Profil
                 </h3>
 
                 <p className="mt-1 text-xs text-slate-500">
-                  Hesap ve hedef bilgileri
+                  Hesap ve hedef
+                  bilgileri
                 </p>
               </button>
             </section>
 
             {/* =====================================================
-                FOOTER SPACE
+                CONTACT
             ===================================================== */}
+
+            <section className="mt-6">
+              <button
+                onClick={() =>
+                  window.location.replace(
+                    "/contact"
+                  )
+                }
+                className="group w-full rounded-3xl border border-slate-200 bg-white p-6 text-left shadow-sm transition hover:-translate-y-1 hover:border-indigo-200 hover:shadow-md sm:p-7"
+              >
+                <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-start gap-4">
+                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-indigo-50 text-2xl transition group-hover:bg-indigo-100">
+                      💬
+                    </div>
+
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-wider text-indigo-600">
+                        İLETİŞİM
+                      </p>
+
+                      <h2 className="mt-1 text-xl font-black text-slate-900 sm:text-2xl">
+                        Bir sorun mu var?
+                      </h2>
+
+                      <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-500">
+                        Önerilerini, geri bildirimlerini veya
+                        karşılaştığın sorunları bizimle paylaş.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="shrink-0 rounded-xl bg-indigo-600 px-5 py-3 text-center text-sm font-black text-white transition group-hover:bg-indigo-700">
+                    İletişime Geç →
+                  </div>
+                </div>
+              </button>
+            </section>
 
             <div className="h-8" />
           </div>
@@ -1388,120 +1853,145 @@ export default function DashboardPage() {
           FIRST LOGIN TOUR
       ========================================================= */}
 
-      {showTour && currentTour && (
-        <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/60 px-4 py-6 backdrop-blur-sm"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="dashboard-tour-title"
-        >
-          <div className="w-full max-w-lg overflow-hidden rounded-3xl bg-white shadow-2xl">
+      {showTour &&
+        currentTour && (
+          <div
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/60 px-4 py-6 backdrop-blur-sm"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="dashboard-tour-title"
+          >
+            <div className="w-full max-w-lg overflow-hidden rounded-3xl bg-white shadow-2xl">
 
-            {/* TOP */}
+              <div className="relative overflow-hidden bg-gradient-to-r from-indigo-600 to-violet-600 px-6 pb-8 pt-8 text-white sm:px-8">
+                <div className="absolute -right-12 -top-12 h-32 w-32 rounded-full bg-white/10" />
 
-            <div className="relative overflow-hidden bg-gradient-to-r from-indigo-600 to-violet-600 px-6 pb-8 pt-8 text-white sm:px-8">
-              <div className="absolute -right-12 -top-12 h-32 w-32 rounded-full bg-white/10" />
-              <div className="absolute -bottom-16 -left-10 h-36 w-36 rounded-full bg-white/10" />
+                <div className="absolute -bottom-16 -left-10 h-36 w-36 rounded-full bg-white/10" />
 
-              <div className="relative">
-                <div className="flex items-center justify-between gap-4">
-                  <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/15 text-4xl shadow-sm backdrop-blur-sm">
-                    {currentTour.icon}
-                  </div>
+                <div className="relative">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/15 text-4xl shadow-sm backdrop-blur-sm">
+                      {
+                        currentTour.icon
+                      }
+                    </div>
 
-                  <button
-                    type="button"
-                    onClick={skipTour}
-                    className="rounded-xl px-3 py-2 text-xs font-bold text-indigo-100 transition hover:bg-white/10 hover:text-white"
-                  >
-                    Atla
-                  </button>
-                </div>
-
-                <p className="mt-6 text-xs font-black uppercase tracking-[0.18em] text-indigo-100">
-                  Sınav Köyü
-                </p>
-
-                <h2
-                  id="dashboard-tour-title"
-                  className="mt-2 text-2xl font-black leading-tight sm:text-3xl"
-                >
-                  {currentTour.title}
-                </h2>
-              </div>
-            </div>
-
-            {/* CONTENT */}
-
-            <div className="px-6 py-6 sm:px-8 sm:py-7">
-              <p className="text-sm leading-7 text-slate-600 sm:text-base">
-                {currentTour.description}
-              </p>
-
-              {/* PROGRESS */}
-
-              <div className="mt-7">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs font-bold text-slate-400">
-                    Tanıtım
-                  </p>
-
-                  <p className="text-xs font-black text-indigo-600">
-                    {tourStep + 1} / {TOUR_STEPS.length}
-                  </p>
-                </div>
-
-                <div className="mt-3 flex gap-1.5">
-                  {TOUR_STEPS.map((step, index) => (
-                    <div
-                      key={step.title}
-                      className={`h-1.5 flex-1 rounded-full transition-all duration-300 ${
-                        index <= tourStep
-                          ? "bg-indigo-600"
-                          : "bg-slate-100"
-                      }`}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              {/* ACTIONS */}
-
-              <div className="mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <button
-                  type="button"
-                  onClick={skipTour}
-                  className="rounded-xl px-4 py-3 text-sm font-bold text-slate-500 transition hover:bg-slate-50 hover:text-slate-700"
-                >
-                  Tanıtımı Atla
-                </button>
-
-                <div className="flex gap-3">
-                  {tourStep > 0 && (
                     <button
                       type="button"
-                      onClick={previousTourStep}
-                      className="rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
+                      onClick={
+                        skipTour
+                      }
+                      className="rounded-xl px-3 py-2 text-xs font-bold text-indigo-100 transition hover:bg-white/10 hover:text-white"
                     >
-                      ← Geri
+                      Atla
                     </button>
-                  )}
+                  </div>
 
+                  <p className="mt-6 text-xs font-black uppercase tracking-[0.18em] text-indigo-100">
+                    Sınav Köyü
+                  </p>
+
+                  <h2
+                    id="dashboard-tour-title"
+                    className="mt-2 text-2xl font-black leading-tight sm:text-3xl"
+                  >
+                    {
+                      currentTour.title
+                    }
+                  </h2>
+                </div>
+              </div>
+
+              <div className="px-6 py-6 sm:px-8 sm:py-7">
+                <p className="text-sm leading-7 text-slate-600 sm:text-base">
+                  {
+                    currentTour.description
+                  }
+                </p>
+
+                <div className="mt-7">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-bold text-slate-400">
+                      Tanıtım
+                    </p>
+
+                    <p className="text-xs font-black text-indigo-600">
+                      {tourStep +
+                        1}{" "}
+                      /{" "}
+                      {
+                        TOUR_STEPS.length
+                      }
+                    </p>
+                  </div>
+
+                  <div className="mt-3 flex gap-1.5">
+                    {TOUR_STEPS.map(
+                      (
+                        step,
+                        index
+                      ) => (
+                        <div
+                          key={
+                            step.title
+                          }
+                          className={`h-1.5 flex-1 rounded-full transition-all duration-300 ${
+                            index <=
+                            tourStep
+                              ? "bg-indigo-600"
+                              : "bg-slate-100"
+                          }`}
+                        />
+                      )
+                    )}
+                  </div>
+                </div>
+
+                <div className="mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <button
                     type="button"
-                    onClick={nextTourStep}
-                    className="rounded-xl bg-indigo-600 px-6 py-3 text-sm font-black text-white shadow-sm transition hover:bg-indigo-700"
+                    onClick={
+                      skipTour
+                    }
+                    className="rounded-xl px-4 py-3 text-sm font-bold text-slate-500 transition hover:bg-slate-50 hover:text-slate-700"
                   >
-                    {tourStep === TOUR_STEPS.length - 1
-                      ? "Başlayalım 🚀"
-                      : "İleri →"}
+                    Tanıtımı
+                    Atla
                   </button>
+
+                  <div className="flex gap-3">
+                    {tourStep >
+                      0 && (
+                      <button
+                        type="button"
+                        onClick={
+                          previousTourStep
+                        }
+                        className="rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
+                      >
+                        ← Geri
+                      </button>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={
+                        nextTourStep
+                      }
+                      className="rounded-xl bg-indigo-600 px-6 py-3 text-sm font-black text-white shadow-sm transition hover:bg-indigo-700"
+                    >
+                      {tourStep ===
+                      TOUR_STEPS.length -
+                        1
+                        ? "Başlayalım 🚀"
+                        : "İleri →"}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
     </main>
   );
 }

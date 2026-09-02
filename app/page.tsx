@@ -114,12 +114,41 @@ const faqs = [
   },
 ];
 
+const infoTabs = [
+  {
+    id: "hakkimizda",
+    label: "Hakkımızda",
+    icon: "🧭",
+  },
+  {
+    id: "ozellikler",
+    label: "Özellikler",
+    icon: "⚙️",
+  },
+  {
+    id: "ogrenim",
+    label: "Öğrenim",
+    icon: "📚",
+  },
+  {
+    id: "nasil-calisir",
+    label: "Nasıl Çalışır?",
+    icon: "🚀",
+  },
+  {
+    id: "sss",
+    label: "SSS",
+    icon: "❓",
+  },
+];
+
 export default function HomePage() {
   const router = useRouter();
 
   const [cookieVisible, setCookieVisible] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [activeInfoTab, setActiveInfoTab] = useState("hakkimizda");
 
   useEffect(() => {
     const cookieChoice = localStorage.getItem("sinav-koyu-cookie-choice");
@@ -154,11 +183,40 @@ export default function HomePage() {
     const element = document.getElementById(id);
 
     if (element) {
-      element.scrollIntoView({
+      const headerOffset = 80;
+
+      const elementPosition =
+        element.getBoundingClientRect().top + window.scrollY;
+
+      const offsetPosition = elementPosition - headerOffset;
+
+      window.scrollTo({
+        top: offsetPosition,
         behavior: "smooth",
-        block: "start",
       });
     }
+  }
+
+  function openInfoTab(tabId: string) {
+    setActiveInfoTab(tabId);
+
+    setTimeout(() => {
+      const element = document.getElementById("bilgi");
+
+      if (element) {
+        const headerOffset = 80;
+
+        const elementPosition =
+          element.getBoundingClientRect().top + window.scrollY;
+
+        const offsetPosition = elementPosition - headerOffset;
+
+        window.scrollTo({
+          top: offsetPosition,
+          behavior: "smooth",
+        });
+      }
+    }, 50);
   }
 
   return (
@@ -186,31 +244,17 @@ export default function HomePage() {
 
           <nav className="hidden items-center gap-7 md:flex">
             <button
-              onClick={() => goToSection("hakkimizda")}
+              onClick={() => goToSection("bilgi")}
               className="text-sm font-bold text-slate-500 transition hover:text-slate-900"
             >
-              Hakkımızda
+              Sınav Köyü
             </button>
 
             <button
-              onClick={() => goToSection("ozellikler")}
+              onClick={() => goToSection("iletisim")}
               className="text-sm font-bold text-slate-500 transition hover:text-slate-900"
             >
-              Özellikler
-            </button>
-
-            <button
-              onClick={() => goToSection("nasil-calisir")}
-              className="text-sm font-bold text-slate-500 transition hover:text-slate-900"
-            >
-              Nasıl Çalışır?
-            </button>
-
-            <button
-              onClick={() => goToSection("sss")}
-              className="text-sm font-bold text-slate-500 transition hover:text-slate-900"
-            >
-              SSS
+              İletişim
             </button>
           </nav>
 
@@ -262,31 +306,17 @@ export default function HomePage() {
           <div className="border-t border-slate-100 bg-white px-4 py-4 md:hidden">
             <div className="mx-auto flex max-w-7xl flex-col gap-2">
               <button
-                onClick={() => goToSection("hakkimizda")}
+                onClick={() => goToSection("bilgi")}
                 className="rounded-xl px-4 py-3 text-left text-sm font-bold text-slate-600 hover:bg-slate-50"
               >
-                Hakkımızda
+                Sınav Köyü
               </button>
 
               <button
-                onClick={() => goToSection("ozellikler")}
+                onClick={() => goToSection("iletisim")}
                 className="rounded-xl px-4 py-3 text-left text-sm font-bold text-slate-600 hover:bg-slate-50"
               >
-                Özellikler
-              </button>
-
-              <button
-                onClick={() => goToSection("nasil-calisir")}
-                className="rounded-xl px-4 py-3 text-left text-sm font-bold text-slate-600 hover:bg-slate-50"
-              >
-                Nasıl Çalışır?
-              </button>
-
-              <button
-                onClick={() => goToSection("sss")}
-                className="rounded-xl px-4 py-3 text-left text-sm font-bold text-slate-600 hover:bg-slate-50"
-              >
-                SSS
+                İletişim
               </button>
 
               <div className="mt-2 grid grid-cols-2 gap-2 border-t border-slate-100 pt-4">
@@ -349,10 +379,10 @@ export default function HomePage() {
               </button>
 
               <button
-                onClick={() => goToSection("nasil-calisir")}
+                onClick={() => goToSection("bilgi")}
                 className="rounded-xl border border-slate-200 bg-white px-7 py-4 text-sm font-black text-slate-700 transition hover:bg-slate-50"
               >
-                Nasıl Çalışır?
+                Sınav Köyü'nü Keşfet
               </button>
             </div>
 
@@ -551,204 +581,448 @@ export default function HomePage() {
       </section>
 
       {/* ===================================================== */}
-      {/* ABOUT */}
+      {/* SINGLE INFORMATION CENTER */}
       {/* ===================================================== */}
 
       <section
-        id="hakkimizda"
-        className="scroll-mt-20 bg-white px-4 py-24 sm:px-6 lg:px-8"
+        id="bilgi"
+        className="scroll-mt-20 bg-slate-50 px-4 py-24 sm:px-6 lg:px-8"
       >
-        <div className="mx-auto grid max-w-7xl gap-12 lg:grid-cols-2 lg:items-center">
-          <div>
-            <div className="inline-flex rounded-full bg-indigo-50 px-3 py-1.5 text-xs font-black text-indigo-600">
+        <div className="mx-auto max-w-7xl">
+          <div className="text-center">
+            <div className="inline-flex rounded-full bg-indigo-100 px-3 py-1.5 text-xs font-black text-indigo-600">
               SINAV KÖYÜ
             </div>
 
             <h2 className="mt-4 text-3xl font-black tracking-tight text-slate-900 sm:text-4xl">
-              YKS hazırlığını
-              <span className="text-indigo-600">
-                {" "}daha anlaşılır{" "}
-              </span>
-              hale getir.
-            </h2>
-
-            <p className="mt-5 max-w-xl text-base leading-7 text-slate-500">
-              YKS hazırlığında bazen problem ders çalışmak değil,
-              nereden başlayacağını ve yaptıklarını nasıl takip
-              edeceğini bilmektir.
-            </p>
-
-            <p className="mt-4 max-w-xl text-base leading-7 text-slate-500">
-              Sınav Köyü bunun için var. Hedefini belirle,
-              çalışmalarını düzenle, görevlerini tamamla,
-              denemelerini kaydet ve zaman içerisinde gelişimini gör.
-            </p>
-
-            <button
-              onClick={goToAuth}
-              className="mt-7 rounded-xl bg-slate-900 px-6 py-3.5 text-sm font-black text-white transition hover:bg-slate-800"
-            >
-              Kendi Köyünü Oluştur →
-            </button>
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="rounded-3xl bg-slate-50 p-6">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-2xl shadow-sm">
-                🧭
-              </div>
-
-              <h3 className="mt-5 font-black text-slate-900">
-                Yol Haritası
-              </h3>
-
-              <p className="mt-2 text-sm leading-6 text-slate-500">
-                Hedefin ile günlük çalışmaların arasında bağlantı kur.
-              </p>
-            </div>
-
-            <div className="rounded-3xl bg-indigo-50 p-6">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-2xl shadow-sm">
-                📋
-              </div>
-
-              <h3 className="mt-5 font-black text-slate-900">
-                Düzen
-              </h3>
-
-              <p className="mt-2 text-sm leading-6 text-slate-500">
-                Yapacaklarını unutmak yerine sistemli şekilde takip et.
-              </p>
-            </div>
-
-            <div className="rounded-3xl bg-emerald-50 p-6">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-2xl shadow-sm">
-                📈
-              </div>
-
-              <h3 className="mt-5 font-black text-slate-900">
-                Gelişim
-              </h3>
-
-              <p className="mt-2 text-sm leading-6 text-slate-500">
-                Küçük ilerlemelerini zaman içerisinde fark et.
-              </p>
-            </div>
-
-            <div className="rounded-3xl bg-amber-50 p-6">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-2xl shadow-sm">
-                🚀
-              </div>
-
-              <h3 className="mt-5 font-black text-slate-900">
-                Hedef
-              </h3>
-
-              <p className="mt-2 text-sm leading-6 text-slate-500">
-                Büyük hedefini her gün biraz daha yakına getir.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ===================================================== */}
-      {/* FEATURES */}
-      {/* ===================================================== */}
-
-      <section
-        id="ozellikler"
-        className="scroll-mt-20 bg-slate-50 px-4 py-24 sm:px-6 lg:px-8"
-      >
-        <div className="mx-auto max-w-7xl">
-          <div className="max-w-2xl">
-            <div className="inline-flex rounded-full bg-indigo-100 px-3 py-1.5 text-xs font-black text-indigo-600">
-              ÖZELLİKLER
-            </div>
-
-            <h2 className="mt-4 text-3xl font-black tracking-tight text-slate-900 sm:text-4xl">
-              İhtiyacın olan araçlar
-              <span className="text-indigo-600">
-                {" "}tek yerde.
-              </span>
-            </h2>
-
-            <p className="mt-4 text-base leading-7 text-slate-500">
-              YKS hazırlığındaki temel ihtiyaçlarını farklı uygulamalar
-              arasında bölmek yerine tek bir sistem içerisinde yönet.
-            </p>
-          </div>
-
-          <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {features.map((feature) => (
-              <div
-                key={feature.title}
-                className="group rounded-3xl border border-slate-200 bg-white p-6 transition duration-200 hover:-translate-y-1 hover:border-indigo-200 hover:shadow-xl hover:shadow-slate-200/50"
-              >
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-50 text-2xl transition group-hover:bg-indigo-50">
-                  {feature.icon}
-                </div>
-
-                <h3 className="mt-5 text-lg font-black text-slate-900">
-                  {feature.title}
-                </h3>
-
-                <p className="mt-2 text-sm leading-6 text-slate-500">
-                  {feature.description}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ===================================================== */}
-      {/* HOW IT WORKS */}
-      {/* ===================================================== */}
-
-      <section
-        id="nasil-calisir"
-        className="scroll-mt-20 bg-white px-4 py-24 sm:px-6 lg:px-8"
-      >
-        <div className="mx-auto max-w-7xl">
-          <div className="text-center">
-            <div className="inline-flex rounded-full bg-indigo-50 px-3 py-1.5 text-xs font-black text-indigo-600">
-              NASIL ÇALIŞIR?
-            </div>
-
-            <h2 className="mt-4 text-3xl font-black tracking-tight text-slate-900 sm:text-4xl">
-              Hedefinden
-              <span className="text-indigo-600">
-                {" "}ilerlemene{" "}
-              </span>
-              kadar.
+              Bilmen gereken
+              <span className="text-indigo-600"> her şey tek yerde.</span>
             </h2>
 
             <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-slate-500">
-              Sınav hazırlığını tek bir büyük problem olarak görmek yerine
-              küçük ve takip edilebilir adımlara böl.
+              Sınav Köyü'nün ne olduğunu, sunduğu özellikleri,
+              öğrenim alanını, çalışma sistemini ve sık sorulan
+              soruları tek bir merkezden keşfet.
             </p>
           </div>
 
-          <div className="relative mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {steps.map((step) => (
-              <div
-                key={step.number}
-                className="relative rounded-3xl border border-slate-200 bg-slate-50 p-6"
-              >
-                <span className="text-5xl font-black text-indigo-100">
-                  {step.number}
-                </span>
+          {/* TAB MENU */}
 
-                <h3 className="mt-5 text-lg font-black text-slate-900">
-                  {step.title}
-                </h3>
+          <div className="mx-auto mt-10 flex max-w-5xl flex-wrap justify-center gap-2 rounded-3xl border border-slate-200 bg-white p-2 shadow-sm">
+            {infoTabs.map((tab) => {
+              const isActive = activeInfoTab === tab.id;
 
-                <p className="mt-2 text-sm leading-6 text-slate-500">
-                  {step.description}
-                </p>
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => openInfoTab(tab.id)}
+                  className={`flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-black transition sm:px-5 ${
+                    isActive
+                      ? "bg-indigo-600 text-white shadow-lg shadow-indigo-100"
+                      : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
+                  }`}
+                >
+                  <span>{tab.icon}</span>
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* CONTENT AREA */}
+
+          <div className="mx-auto mt-6 max-w-5xl">
+            {/* ================================================= */}
+            {/* ABOUT */}
+            {/* ================================================= */}
+
+            {activeInfoTab === "hakkimizda" && (
+              <div className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white p-7 shadow-sm sm:p-10 lg:p-12">
+                <div className="grid gap-10 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
+                  <div>
+                    <div className="inline-flex rounded-full bg-indigo-50 px-3 py-1.5 text-xs font-black text-indigo-600">
+                      HAKKIMIZDA
+                    </div>
+
+                    <h3 className="mt-5 text-3xl font-black tracking-tight text-slate-900 sm:text-4xl">
+                      YKS hazırlığını
+                      <span className="block text-indigo-600">
+                        daha anlaşılır hale getir.
+                      </span>
+                    </h3>
+
+                    <p className="mt-5 max-w-2xl text-base leading-7 text-slate-500">
+                      YKS hazırlığında bazen problem ders çalışmak
+                      değil, nereden başlayacağını ve yaptıklarını
+                      nasıl takip edeceğini bilmektir.
+                    </p>
+
+                    <p className="mt-4 max-w-2xl text-base leading-7 text-slate-500">
+                      Sınav Köyü bunun için var. Hedefini belirle,
+                      çalışmalarını düzenle, görevlerini tamamla,
+                      denemelerini kaydet ve zaman içerisinde
+                      gelişimini gör.
+                    </p>
+
+                    <button
+                      onClick={goToAuth}
+                      className="mt-7 rounded-xl bg-slate-900 px-6 py-3.5 text-sm font-black text-white transition hover:bg-slate-800"
+                    >
+                      Kendi Köyünü Oluştur →
+                    </button>
+                  </div>
+
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="rounded-3xl bg-slate-50 p-6">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-2xl shadow-sm">
+                        🧭
+                      </div>
+
+                      <h4 className="mt-5 font-black text-slate-900">
+                        Yol Haritası
+                      </h4>
+
+                      <p className="mt-2 text-sm leading-6 text-slate-500">
+                        Hedefin ile günlük çalışmaların arasında
+                        bağlantı kur.
+                      </p>
+                    </div>
+
+                    <div className="rounded-3xl bg-indigo-50 p-6">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-2xl shadow-sm">
+                        📋
+                      </div>
+
+                      <h4 className="mt-5 font-black text-slate-900">
+                        Düzen
+                      </h4>
+
+                      <p className="mt-2 text-sm leading-6 text-slate-500">
+                        Yapacaklarını unutmak yerine sistemli şekilde
+                        takip et.
+                      </p>
+                    </div>
+
+                    <div className="rounded-3xl bg-emerald-50 p-6">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-2xl shadow-sm">
+                        📈
+                      </div>
+
+                      <h4 className="mt-5 font-black text-slate-900">
+                        Gelişim
+                      </h4>
+
+                      <p className="mt-2 text-sm leading-6 text-slate-500">
+                        Küçük ilerlemelerini zaman içerisinde fark et.
+                      </p>
+                    </div>
+
+                    <div className="rounded-3xl bg-amber-50 p-6">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-2xl shadow-sm">
+                        🚀
+                      </div>
+
+                      <h4 className="mt-5 font-black text-slate-900">
+                        Hedef
+                      </h4>
+
+                      <p className="mt-2 text-sm leading-6 text-slate-500">
+                        Büyük hedefini her gün biraz daha yakına getir.
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
-            ))}
+            )}
+
+            {/* ================================================= */}
+            {/* FEATURES */}
+            {/* ================================================= */}
+
+            {activeInfoTab === "ozellikler" && (
+              <div className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white p-7 shadow-sm sm:p-10">
+                <div className="text-center">
+                  <div className="inline-flex rounded-full bg-indigo-50 px-3 py-1.5 text-xs font-black text-indigo-600">
+                    ÖZELLİKLER
+                  </div>
+
+                  <h3 className="mt-5 text-3xl font-black tracking-tight text-slate-900 sm:text-4xl">
+                    İhtiyacın olan araçlar
+                    <span className="text-indigo-600">
+                      {" "}
+                      tek yerde.
+                    </span>
+                  </h3>
+
+                  <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-slate-500">
+                    YKS hazırlığındaki temel ihtiyaçlarını farklı
+                    uygulamalar arasında bölmek yerine tek bir sistem
+                    içerisinde yönet.
+                  </p>
+                </div>
+
+                <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {features.map((feature) => (
+                    <div
+                      key={feature.title}
+                      className="group rounded-3xl border border-slate-200 bg-slate-50 p-6 transition duration-200 hover:-translate-y-1 hover:border-indigo-200 hover:bg-white hover:shadow-xl hover:shadow-slate-200/50"
+                    >
+                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-2xl shadow-sm transition group-hover:bg-indigo-50">
+                        {feature.icon}
+                      </div>
+
+                      <h4 className="mt-5 text-lg font-black text-slate-900">
+                        {feature.title}
+                      </h4>
+
+                      <p className="mt-2 text-sm leading-6 text-slate-500">
+                        {feature.description}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* ================================================= */}
+            {/* LEARNING */}
+            {/* ================================================= */}
+
+            {activeInfoTab === "ogrenim" && (
+              <div className="overflow-hidden rounded-[2rem] border border-slate-200 bg-gradient-to-br from-indigo-50 via-white to-slate-50 p-7 shadow-sm sm:p-10 lg:p-12">
+                <div className="grid gap-10 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
+                  <div>
+                    <div className="inline-flex rounded-full bg-indigo-100 px-3 py-1.5 text-xs font-black text-indigo-600">
+                      ÖĞRENİM MERKEZİ
+                    </div>
+
+                    <h3 className="mt-5 text-3xl font-black tracking-tight text-slate-900 sm:text-4xl">
+                      Sadece planlama değil,
+                      <span className="block text-indigo-600">
+                        öğrenme sürecinde de yanındayız.
+                      </span>
+                    </h3>
+
+                    <p className="mt-5 max-w-2xl text-base leading-7 text-slate-500">
+                      YKS hazırlığında doğru kaynağa ulaşmak da en
+                      az plan yapmak kadar önemli. Sınav Köyü
+                      içerisindeki öğrenim alanı, çalışma sürecini
+                      daha düzenli yürütmene yardımcı olur.
+                    </p>
+
+                    <div className="mt-7 flex flex-wrap gap-3">
+                      <span className="rounded-full border border-indigo-100 bg-white px-4 py-2 text-xs font-black text-indigo-600 shadow-sm">
+                        📖 Ders kaynakları
+                      </span>
+
+                      <span className="rounded-full border border-indigo-100 bg-white px-4 py-2 text-xs font-black text-indigo-600 shadow-sm">
+                        🧠 Konu çalışmaları
+                      </span>
+
+                      <span className="rounded-full border border-indigo-100 bg-white px-4 py-2 text-xs font-black text-indigo-600 shadow-sm">
+                        📈 İlerleme takibi
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="relative">
+                    <div className="absolute -inset-5 rounded-[2rem] bg-indigo-200/30 blur-2xl" />
+
+                    <div className="relative rounded-[2rem] border border-white bg-white p-6 shadow-xl shadow-slate-200/50">
+                      <div className="flex items-center justify-between border-b border-slate-100 pb-5">
+                        <div>
+                          <p className="text-xs font-bold text-slate-400">
+                            Öğrenim Merkezi
+                          </p>
+
+                          <h4 className="mt-1 text-lg font-black text-slate-900">
+                            Çalışma Alanın
+                          </h4>
+                        </div>
+
+                        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-50 text-xl">
+                          📚
+                        </div>
+                      </div>
+
+                      <div className="mt-5 space-y-3">
+                        <div className="flex items-center gap-4 rounded-2xl bg-slate-50 p-4">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white shadow-sm">
+                            📖
+                          </div>
+
+                          <div className="flex-1">
+                            <p className="text-sm font-black text-slate-900">
+                              Kaynaklarını düzenle
+                            </p>
+
+                            <p className="mt-1 text-xs text-slate-400">
+                              Çalışma sürecini daha kolay takip et.
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-4 rounded-2xl bg-indigo-50 p-4">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white shadow-sm">
+                            🧠
+                          </div>
+
+                          <div className="flex-1">
+                            <p className="text-sm font-black text-slate-900">
+                              Konularına odaklan
+                            </p>
+
+                            <p className="mt-1 text-xs text-slate-400">
+                              Eksiklerini daha net gör.
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-4 rounded-2xl bg-emerald-50 p-4">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white shadow-sm">
+                            🚀
+                          </div>
+
+                          <div className="flex-1">
+                            <p className="text-sm font-black text-slate-900">
+                              Çalışmaya devam et
+                            </p>
+
+                            <p className="mt-1 text-xs text-slate-400">
+                              Küçük adımlarla hedefine yaklaş.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ================================================= */}
+            {/* HOW IT WORKS */}
+            {/* ================================================= */}
+
+            {activeInfoTab === "nasil-calisir" && (
+              <div className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white p-7 shadow-sm sm:p-10">
+                <div className="text-center">
+                  <div className="inline-flex rounded-full bg-indigo-50 px-3 py-1.5 text-xs font-black text-indigo-600">
+                    NASIL ÇALIŞIR?
+                  </div>
+
+                  <h3 className="mt-5 text-3xl font-black tracking-tight text-slate-900 sm:text-4xl">
+                    Hedefinden
+                    <span className="text-indigo-600">
+                      {" "}
+                      ilerlemene{" "}
+                    </span>
+                    kadar.
+                  </h3>
+
+                  <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-slate-500">
+                    Sınav hazırlığını tek bir büyük problem olarak
+                    görmek yerine küçük ve takip edilebilir adımlara
+                    böl.
+                  </p>
+                </div>
+
+                <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {steps.map((step) => (
+                    <div
+                      key={step.number}
+                      className="rounded-3xl border border-slate-200 bg-slate-50 p-6 transition hover:-translate-y-1 hover:bg-white hover:shadow-lg"
+                    >
+                      <span className="text-5xl font-black text-indigo-100">
+                        {step.number}
+                      </span>
+
+                      <h4 className="mt-5 text-lg font-black text-slate-900">
+                        {step.title}
+                      </h4>
+
+                      <p className="mt-2 text-sm leading-6 text-slate-500">
+                        {step.description}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-8 rounded-3xl bg-slate-900 p-6 text-center sm:p-8">
+                  <p className="text-sm font-black text-indigo-300">
+                    Sistem
+                  </p>
+
+                  <p className="mt-3 text-lg font-black text-white sm:text-xl">
+                    Hedef → Plan → Görev → Pomodoro → Deneme → İlerleme
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* ================================================= */}
+            {/* FAQ */}
+            {/* ================================================= */}
+
+            {activeInfoTab === "sss" && (
+              <div className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white p-7 shadow-sm sm:p-10">
+                <div className="text-center">
+                  <div className="inline-flex rounded-full bg-indigo-100 px-3 py-1.5 text-xs font-black text-indigo-600">
+                    MERAK EDİLENLER
+                  </div>
+
+                  <h3 className="mt-5 text-3xl font-black tracking-tight text-slate-900 sm:text-4xl">
+                    Sık sorulan sorular
+                  </h3>
+
+                  <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-slate-500">
+                    Sınav Köyü hakkında merak edebileceğin temel
+                    soruların cevapları.
+                  </p>
+                </div>
+
+                <div className="mx-auto mt-10 max-w-3xl space-y-3">
+                  {faqs.map((faq, index) => {
+                    const isOpen = openFaq === index;
+
+                    return (
+                      <div
+                        key={faq.question}
+                        className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50"
+                      >
+                        <button
+                          onClick={() =>
+                            setOpenFaq(isOpen ? null : index)
+                          }
+                          className="flex w-full items-center justify-between gap-5 p-5 text-left"
+                          aria-expanded={isOpen}
+                        >
+                          <span className="font-black text-slate-900">
+                            {faq.question}
+                          </span>
+
+                          <span
+                            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white text-lg shadow-sm transition ${
+                              isOpen ? "rotate-45" : ""
+                            }`}
+                          >
+                            +
+                          </span>
+                        </button>
+
+                        {isOpen && (
+                          <div className="border-t border-slate-200 bg-white px-5 pb-5 pt-4">
+                            <p className="text-sm leading-7 text-slate-500">
+                              {faq.answer}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </section>
@@ -776,71 +1050,6 @@ export default function HomePage() {
             çalışmalarını ve ilerlemeni daha düzenli takip edebilmen
             için ihtiyacın olan sistemi sunar.
           </p>
-        </div>
-      </section>
-
-      {/* ===================================================== */}
-      {/* FAQ */}
-      {/* ===================================================== */}
-
-      <section
-        id="sss"
-        className="scroll-mt-20 bg-slate-50 px-4 py-24 sm:px-6 lg:px-8"
-      >
-        <div className="mx-auto max-w-4xl">
-          <div className="text-center">
-            <div className="inline-flex rounded-full bg-indigo-100 px-3 py-1.5 text-xs font-black text-indigo-600">
-              MERAK EDİLENLER
-            </div>
-
-            <h2 className="mt-4 text-3xl font-black tracking-tight text-slate-900 sm:text-4xl">
-              Sık sorulan sorular
-            </h2>
-
-            <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-slate-500">
-              Sınav Köyü hakkında merak edebileceğin temel soruların
-              cevapları.
-            </p>
-          </div>
-
-          <div className="mt-12 space-y-3">
-            {faqs.map((faq, index) => {
-              const isOpen = openFaq === index;
-
-              return (
-                <div
-                  key={faq.question}
-                  className="overflow-hidden rounded-2xl border border-slate-200 bg-white"
-                >
-                  <button
-                    onClick={() => setOpenFaq(isOpen ? null : index)}
-                    className="flex w-full items-center justify-between gap-5 p-5 text-left"
-                    aria-expanded={isOpen}
-                  >
-                    <span className="font-black text-slate-900">
-                      {faq.question}
-                    </span>
-
-                    <span
-                      className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-lg transition ${
-                        isOpen ? "rotate-45" : ""
-                      }`}
-                    >
-                      +
-                    </span>
-                  </button>
-
-                  {isOpen && (
-                    <div className="border-t border-slate-100 px-5 pb-5 pt-4">
-                      <p className="text-sm leading-7 text-slate-500">
-                        {faq.answer}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
         </div>
       </section>
 
@@ -877,6 +1086,84 @@ export default function HomePage() {
             >
               Ücretsiz Hesap Oluştur →
             </button>
+          </div>
+        </div>
+      </section>
+
+      {/* ===================================================== */}
+      {/* CONTACT */}
+      {/* ===================================================== */}
+
+      <section
+        id="iletisim"
+        className="scroll-mt-20 border-t border-slate-100 bg-white px-4 py-20 sm:px-6 lg:px-8"
+      >
+        <div className="mx-auto max-w-5xl">
+          <div className="overflow-hidden rounded-[2rem] border border-slate-200 bg-slate-50 p-6 shadow-sm sm:p-10">
+            <div className="grid gap-10 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
+              <div>
+                <div className="inline-flex rounded-full bg-indigo-100 px-3 py-1.5 text-xs font-black text-indigo-600">
+                  İLETİŞİM
+                </div>
+
+                <h2 className="mt-4 text-3xl font-black tracking-tight text-slate-900 sm:text-4xl">
+                  Bir sorunun veya
+                  <span className="block text-indigo-600">
+                    bir fikrin mi var?
+                  </span>
+                </h2>
+
+                <p className="mt-4 max-w-xl text-sm leading-7 text-slate-500 sm:text-base">
+                  Sınav Köyü hakkında görüşlerini, önerilerini,
+                  karşılaştığın sorunları veya bizimle paylaşmak
+                  istediğin fikirleri doğrudan bize ulaştırabilirsin.
+                </p>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+                <a
+                  href="https://mail.google.com/mail/?view=cm&fs=1&to=sinavkoyu@gmail.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 transition hover:-translate-y-0.5 hover:border-indigo-200 hover:shadow-lg"
+                >
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-red-50 text-xl">
+                    ✉️
+                  </div>
+
+                  <div>
+                    <p className="text-sm font-black text-slate-900">
+                      E-posta Gönder
+                    </p>
+
+                    <p className="mt-1 text-xs font-semibold text-slate-400">
+                      sinavkoyu@gmail.com
+                    </p>
+                  </div>
+                </a>
+
+                <a
+                  href="https://www.instagram.com/sinav_koyu/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 transition hover:-translate-y-0.5 hover:border-indigo-200 hover:shadow-lg"
+                >
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-pink-50 text-xl">
+                    📷
+                  </div>
+
+                  <div>
+                    <p className="text-sm font-black text-slate-900">
+                      Instagram
+                    </p>
+
+                    <p className="mt-1 text-xs font-semibold text-slate-400">
+                      @sinav_koyu
+                    </p>
+                  </div>
+                </a>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -920,31 +1207,45 @@ export default function HomePage() {
 
             <div className="mt-4 space-y-3 text-sm font-semibold text-slate-500">
               <button
-                onClick={() => goToSection("hakkimizda")}
+                onClick={() => openInfoTab("hakkimizda")}
                 className="block transition hover:text-slate-900"
               >
                 Hakkımızda
               </button>
 
               <button
-                onClick={() => goToSection("ozellikler")}
+                onClick={() => openInfoTab("ozellikler")}
                 className="block transition hover:text-slate-900"
               >
                 Özellikler
               </button>
 
               <button
-                onClick={() => goToSection("nasil-calisir")}
+                onClick={() => openInfoTab("ogrenim")}
+                className="block transition hover:text-slate-900"
+              >
+                Öğrenim
+              </button>
+
+              <button
+                onClick={() => openInfoTab("nasil-calisir")}
                 className="block transition hover:text-slate-900"
               >
                 Nasıl Çalışır?
               </button>
 
               <button
-                onClick={() => goToSection("sss")}
+                onClick={() => openInfoTab("sss")}
                 className="block transition hover:text-slate-900"
               >
                 SSS
+              </button>
+
+              <button
+                onClick={() => goToSection("iletisim")}
+                className="block transition hover:text-slate-900"
+              >
+                İletişim
               </button>
             </div>
           </div>
