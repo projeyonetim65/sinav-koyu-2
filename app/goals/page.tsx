@@ -26,6 +26,9 @@ export default function GoalsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
+  const [deleteGoalId, setDeleteGoalId] = useState<number | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
   useEffect(() => {
     loadGoals();
   }, []);
@@ -100,12 +103,8 @@ export default function GoalsPage() {
     const newGoal = {
       user_id: user.id,
       title: title.trim(),
-      target_rank: targetRank
-        ? Number(targetRank)
-        : null,
-      target_net: targetNet
-        ? Number(targetNet)
-        : null,
+      target_rank: targetRank ? Number(targetRank) : null,
+      target_net: targetNet ? Number(targetNet) : null,
       exam_type: examType,
     };
 
@@ -136,19 +135,29 @@ export default function GoalsPage() {
     setSaving(false);
   }
 
-  async function deleteGoal(id: number) {
-    const confirmed = window.confirm(
-      "Bu hedefi silmek istediğine emin misin?"
-    );
+  function openDeleteModal(id: number) {
+    setDeleteGoalId(id);
+  }
 
-    if (!confirmed) {
+  function closeDeleteModal() {
+    if (deleting) {
       return;
     }
+
+    setDeleteGoalId(null);
+  }
+
+  async function deleteGoal() {
+    if (deleteGoalId === null) {
+      return;
+    }
+
+    setDeleting(true);
 
     const { error } = await supabase
       .from("goals")
       .delete()
-      .eq("id", id);
+      .eq("id", deleteGoalId);
 
     if (error) {
       console.error("Hedef silme hatası:", error);
@@ -159,15 +168,21 @@ export default function GoalsPage() {
         }`
       );
 
+      setDeleting(false);
       return;
     }
 
     setGoals((current) =>
-      current.filter(
-        (goal) => goal.id !== id
-      )
+      current.filter((goal) => goal.id !== deleteGoalId)
     );
+
+    setDeleteGoalId(null);
+    setDeleting(false);
   }
+
+  const selectedGoal = goals.find(
+    (goal) => goal.id === deleteGoalId
+  );
 
   if (loading) {
     return (
@@ -402,7 +417,7 @@ export default function GoalsPage() {
 
                         <button
                           onClick={() =>
-                            deleteGoal(goal.id)
+                            openDeleteModal(goal.id)
                           }
                           className="shrink-0 rounded-xl bg-red-50 px-3 py-2 text-xs font-bold text-red-600 transition hover:bg-red-100"
                         >
@@ -469,6 +484,76 @@ export default function GoalsPage() {
           </div>
         </div>
       </div>
+
+      {/* DELETE CONFIRMATION MODAL */}
+
+      {deleteGoalId !== null && selectedGoal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-4 backdrop-blur-sm"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              closeDeleteModal();
+            }
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-goal-title"
+            className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"
+          >
+
+            <div className="flex items-start gap-4">
+
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-red-50 text-2xl">
+                🗑️
+              </div>
+
+              <div className="min-w-0">
+                <h2
+                  id="delete-goal-title"
+                  className="text-lg font-black text-slate-900"
+                >
+                  Hedefi Sil
+                </h2>
+
+                <p className="mt-2 text-sm leading-6 text-slate-500">
+                  Bu hedefi silmek istediğine emin misin?
+                </p>
+
+                <p className="mt-2 break-words rounded-xl bg-slate-50 px-3 py-2 text-sm font-bold text-slate-700">
+                  {selectedGoal.title}
+                </p>
+              </div>
+
+            </div>
+
+            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+
+              <button
+                type="button"
+                onClick={closeDeleteModal}
+                disabled={deleting}
+                className="rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Vazgeç
+              </button>
+
+              <button
+                type="button"
+                onClick={deleteGoal}
+                disabled={deleting}
+                className="rounded-xl bg-red-600 px-5 py-3 text-sm font-bold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {deleting ? "Siliniyor..." : "Evet, Sil"}
+              </button>
+
+            </div>
+
+          </div>
+        </div>
+      )}
+
     </main>
   );
 }
