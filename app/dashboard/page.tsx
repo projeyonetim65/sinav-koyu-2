@@ -54,6 +54,66 @@ type Resource = {
   status: "not_started" | "in_progress" | "completed";
 };
 
+type TourStep = {
+  icon: string;
+  title: string;
+  description: string;
+};
+
+const TOUR_STORAGE_KEY =
+  "sinav_koyu_dashboard_tour_completed";
+
+const TOUR_STEPS: TourStep[] = [
+  {
+    icon: "🎉",
+    title: "Sınav Köyü'ne hoş geldin!",
+    description:
+      "YKS hazırlığını tek bir yerden yönetmen için Sınav Köyü'nü oluşturduk. Hedefinden günlük çalışmalarına, denemelerinden ilerlemene kadar her şeyi burada takip edebilirsin.",
+  },
+  {
+    icon: "🎯",
+    title: "Önce hedefini belirle",
+    description:
+      "Hedef üniversiteni, bölümünü ve istediğin sıralamayı belirle. Böylece neden çalıştığını her zaman hatırlayabilir ve ilerlemeni hedefin doğrultusunda takip edebilirsin.",
+  },
+  {
+    icon: "✅",
+    title: "Günlük görevlerini yönet",
+    description:
+      "Bugün yapman gereken çalışmaları görevlerine ekle. Tamamladıkça işaretle ve gün içindeki çalışma ilerlemeni dashboard üzerinden takip et.",
+  },
+  {
+    icon: "📚",
+    title: "Konularını ve kaynaklarını takip et",
+    description:
+      "Hangi konuları tamamladığını, hangileri üzerinde çalıştığını ve kullandığın kaynaklarda kaç soru çözdüğünü takip ederek eksiklerini daha net görebilirsin.",
+  },
+  {
+    icon: "📝",
+    title: "Denemelerini kaydet",
+    description:
+      "Çözdüğün denemeleri sisteme ekle. Doğru ve yanlışlarını girerek netlerini hesapla ve zaman içinde gelişimini takip et.",
+  },
+  {
+    icon: "📊",
+    title: "İlerlemeni analiz et",
+    description:
+      "Çalışmalarını, konu ilerlemeni, soru çözümünü ve deneme sonuçlarını istatistiklerle takip et. Böylece nerede olduğunu daha net görebilirsin.",
+  },
+  {
+    icon: "🍅",
+    title: "Odaklan ve Köyünü geliştir",
+    description:
+      "Pomodoro ile çalışma süreni yönet, çalışmalarından XP kazan ve kazandığın XP ile kendi Köyünü geliştir. Çalışmanı küçük bir ilerleme oyununa dönüştür.",
+  },
+  {
+    icon: "🚀",
+    title: "Artık hazırsın!",
+    description:
+      "Sınav Köyü'nün temel yapısını artık biliyorsun. Hedefini belirle, ilk görevini oluştur ve bugün için küçük bir adım at. Gerisi zamanla gelecek.",
+  },
+];
+
 export default function DashboardPage() {
   const [profile, setProfile] = useState<Profile | null>(null);
 
@@ -68,6 +128,10 @@ export default function DashboardPage() {
   const [resources, setResources] = useState<Resource[]>([]);
 
   const [loading, setLoading] = useState(true);
+
+  const [showTour, setShowTour] = useState(false);
+
+  const [tourStep, setTourStep] = useState(0);
 
   const loadDashboard = useCallback(async () => {
     setLoading(true);
@@ -319,6 +383,75 @@ export default function DashboardPage() {
     };
   }, [loadDashboard]);
 
+  /*
+   * ---------------------------------------------------------
+   * İLK GİRİŞ TANITIM TURUNU KONTROL ET
+   * ---------------------------------------------------------
+   */
+
+  useEffect(() => {
+    if (loading) {
+      return;
+    }
+
+    try {
+      const completed = window.localStorage.getItem(
+        TOUR_STORAGE_KEY
+      );
+
+      if (completed !== "true") {
+        setTourStep(0);
+        setShowTour(true);
+      }
+    } catch (error) {
+      console.error(
+        "Tanıtım turu kontrol edilemedi:",
+        error
+      );
+
+      setTourStep(0);
+      setShowTour(true);
+    }
+  }, [loading]);
+
+  function completeTour() {
+    try {
+      window.localStorage.setItem(
+        TOUR_STORAGE_KEY,
+        "true"
+      );
+    } catch (error) {
+      console.error(
+        "Tanıtım turu kaydedilemedi:",
+        error
+      );
+    }
+
+    setShowTour(false);
+    setTourStep(0);
+  }
+
+  function nextTourStep() {
+    if (tourStep >= TOUR_STEPS.length - 1) {
+      completeTour();
+      return;
+    }
+
+    setTourStep((current) => current + 1);
+  }
+
+  function previousTourStep() {
+    if (tourStep === 0) {
+      return;
+    }
+
+    setTourStep((current) => current - 1);
+  }
+
+  function skipTour() {
+    completeTour();
+  }
+
   async function toggleTask(task: Task) {
     const completed = task.status === "completed";
 
@@ -444,6 +577,8 @@ export default function DashboardPage() {
   const firstName =
     profile?.full_name?.split(" ")[0] ||
     "Öğrenci";
+
+  const currentTour = TOUR_STEPS[tourStep];
 
   /*
    * ---------------------------------------------------------
@@ -1248,6 +1383,125 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* =========================================================
+          FIRST LOGIN TOUR
+      ========================================================= */}
+
+      {showTour && currentTour && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/60 px-4 py-6 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="dashboard-tour-title"
+        >
+          <div className="w-full max-w-lg overflow-hidden rounded-3xl bg-white shadow-2xl">
+
+            {/* TOP */}
+
+            <div className="relative overflow-hidden bg-gradient-to-r from-indigo-600 to-violet-600 px-6 pb-8 pt-8 text-white sm:px-8">
+              <div className="absolute -right-12 -top-12 h-32 w-32 rounded-full bg-white/10" />
+              <div className="absolute -bottom-16 -left-10 h-36 w-36 rounded-full bg-white/10" />
+
+              <div className="relative">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/15 text-4xl shadow-sm backdrop-blur-sm">
+                    {currentTour.icon}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={skipTour}
+                    className="rounded-xl px-3 py-2 text-xs font-bold text-indigo-100 transition hover:bg-white/10 hover:text-white"
+                  >
+                    Atla
+                  </button>
+                </div>
+
+                <p className="mt-6 text-xs font-black uppercase tracking-[0.18em] text-indigo-100">
+                  Sınav Köyü
+                </p>
+
+                <h2
+                  id="dashboard-tour-title"
+                  className="mt-2 text-2xl font-black leading-tight sm:text-3xl"
+                >
+                  {currentTour.title}
+                </h2>
+              </div>
+            </div>
+
+            {/* CONTENT */}
+
+            <div className="px-6 py-6 sm:px-8 sm:py-7">
+              <p className="text-sm leading-7 text-slate-600 sm:text-base">
+                {currentTour.description}
+              </p>
+
+              {/* PROGRESS */}
+
+              <div className="mt-7">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-bold text-slate-400">
+                    Tanıtım
+                  </p>
+
+                  <p className="text-xs font-black text-indigo-600">
+                    {tourStep + 1} / {TOUR_STEPS.length}
+                  </p>
+                </div>
+
+                <div className="mt-3 flex gap-1.5">
+                  {TOUR_STEPS.map((step, index) => (
+                    <div
+                      key={step.title}
+                      className={`h-1.5 flex-1 rounded-full transition-all duration-300 ${
+                        index <= tourStep
+                          ? "bg-indigo-600"
+                          : "bg-slate-100"
+                      }`}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* ACTIONS */}
+
+              <div className="mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <button
+                  type="button"
+                  onClick={skipTour}
+                  className="rounded-xl px-4 py-3 text-sm font-bold text-slate-500 transition hover:bg-slate-50 hover:text-slate-700"
+                >
+                  Tanıtımı Atla
+                </button>
+
+                <div className="flex gap-3">
+                  {tourStep > 0 && (
+                    <button
+                      type="button"
+                      onClick={previousTourStep}
+                      className="rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
+                    >
+                      ← Geri
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={nextTourStep}
+                    className="rounded-xl bg-indigo-600 px-6 py-3 text-sm font-black text-white shadow-sm transition hover:bg-indigo-700"
+                  >
+                    {tourStep === TOUR_STEPS.length - 1
+                      ? "Başlayalım 🚀"
+                      : "İleri →"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
