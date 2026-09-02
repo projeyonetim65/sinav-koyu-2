@@ -1,6 +1,10 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import {
+  FormEvent,
+  useEffect,
+  useState,
+} from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
@@ -9,41 +13,151 @@ type Mode = "login" | "signup" | "forgot";
 export default function AuthPage() {
   const router = useRouter();
 
-  const [mode, setMode] = useState<Mode>("login");
+  const [mode, setMode] =
+    useState<Mode>("login");
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [fullName, setFullName] = useState("");
+  const [email, setEmail] =
+    useState("");
 
-  const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
+  const [password, setPassword] =
+    useState("");
 
-  const [errorMessage, setErrorMessage] = useState("");
-  const [successMessage, setSuccessMessage] = useState("");
+  const [fullName, setFullName] =
+    useState("");
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [submitting, setSubmitting] =
+    useState(false);
+
+  const [errorMessage, setErrorMessage] =
+    useState("");
+
+  const [successMessage, setSuccessMessage] =
+    useState("");
+
+  /*
+   * ---------------------------------------------------------
+   * OTURUM KONTROLÜ
+   * ---------------------------------------------------------
+   *
+   * Kullanıcı zaten giriş yaptıysa doğrudan
+   * dashboard'a gönderiyoruz.
+   *
+   * ONBOARDING DEVRE DIŞI.
+   */
 
   useEffect(() => {
-    checkSession();
-  }, []);
+    let cancelled = false;
 
-  async function checkSession() {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
+    async function checkSession() {
+      try {
+        const {
+          data: { session },
+          error,
+        } =
+          await supabase.auth.getSession();
 
-    if (session?.user) {
-      router.replace("/village");
-      return;
+        if (error) {
+          console.error(
+            "Session kontrol hatası:",
+            error.message
+          );
+        }
+
+        /*
+         * Kullanıcı zaten giriş yapmışsa
+         * direkt dashboard'a git.
+         */
+
+        if (session?.user) {
+          router.replace("/dashboard");
+          return;
+        }
+
+        /*
+         * Session yoksa giriş ekranını göster.
+         */
+
+        if (!cancelled) {
+          setLoading(false);
+        }
+      } catch (error) {
+        console.error(
+          "Oturum kontrolünde beklenmeyen hata:",
+          error
+        );
+
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
     }
 
-    setLoading(false);
-  }
+    void checkSession();
 
-  function switchMode(nextMode: Mode) {
+    /*
+     * Supabase auth değişikliklerini dinle.
+     */
+
+    const {
+      data: {
+        subscription,
+      },
+    } =
+      supabase.auth.onAuthStateChange(
+        (event, session) => {
+          /*
+           * Kullanıcı giriş yaptıysa
+           * direkt dashboard'a gönder.
+           *
+           * ONBOARDING YOK.
+           */
+
+          if (
+            session?.user &&
+            (
+              event === "SIGNED_IN" ||
+              event === "INITIAL_SESSION" ||
+              event === "USER_UPDATED"
+            )
+          ) {
+            router.replace("/dashboard");
+          }
+        }
+      );
+
+    return () => {
+      cancelled = true;
+
+      subscription.unsubscribe();
+    };
+  }, [router]);
+
+  /*
+   * ---------------------------------------------------------
+   * MOD DEĞİŞTİR
+   * ---------------------------------------------------------
+   */
+
+  function switchMode(
+    nextMode: Mode
+  ) {
     setMode(nextMode);
+
     setErrorMessage("");
+
     setSuccessMessage("");
+
     setPassword("");
   }
+
+  /*
+   * ---------------------------------------------------------
+   * FORM
+   * ---------------------------------------------------------
+   */
 
   async function handleSubmit(
     event: FormEvent<HTMLFormElement>
@@ -55,75 +169,150 @@ export default function AuthPage() {
     }
 
     setErrorMessage("");
+
     setSuccessMessage("");
 
-    const cleanEmail = email.trim().toLowerCase();
+    const cleanEmail =
+      email.trim().toLowerCase();
+
+    /*
+     * E-posta kontrolü
+     */
 
     if (!cleanEmail) {
-      setErrorMessage("Lütfen e-posta adresini gir.");
+      setErrorMessage(
+        "Lütfen e-posta adresini gir."
+      );
+
       return;
     }
+
+    /*
+     * Şifre unutma
+     */
 
     if (mode === "forgot") {
-      await handleForgotPassword(cleanEmail);
+      await handleForgotPassword(
+        cleanEmail
+      );
+
       return;
     }
+
+    /*
+     * Şifre kontrolü
+     */
 
     if (!password) {
-      setErrorMessage("Lütfen şifreni gir.");
+      setErrorMessage(
+        "Lütfen şifreni gir."
+      );
+
       return;
     }
 
-    if (mode === "signup" && password.length < 6) {
+    /*
+     * Kayıt şifresi
+     */
+
+    if (
+      mode === "signup" &&
+      password.length < 6
+    ) {
       setErrorMessage(
         "Kayıt olmak için şifren en az 6 karakter olmalı."
       );
+
       return;
     }
 
-    if (mode === "signup" && !fullName.trim()) {
-      setErrorMessage("Lütfen adını ve soyadını gir.");
+    /*
+     * Ad soyad
+     */
+
+    if (
+      mode === "signup" &&
+      !fullName.trim()
+    ) {
+      setErrorMessage(
+        "Lütfen adını ve soyadını gir."
+      );
+
       return;
     }
 
     setSubmitting(true);
 
     try {
+      /*
+       * GİRİŞ
+       */
+
       if (mode === "login") {
-        await handleLogin(cleanEmail, password);
+        await handleLogin(
+          cleanEmail,
+          password
+        );
+
         return;
       }
 
+      /*
+       * KAYIT
+       */
+
       if (mode === "signup") {
-        await handleSignup(cleanEmail, password);
+        await handleSignup(
+          cleanEmail,
+          password
+        );
+
         return;
       }
     } catch (error) {
-      console.error("Auth işlemi hatası:", error);
+      console.error(
+        "Auth işlemi hatası:",
+        error
+      );
 
       setErrorMessage(
         "Bir bağlantı hatası oluştu. Lütfen tekrar dene."
       );
+
       setSubmitting(false);
     }
   }
+
+  /*
+   * ---------------------------------------------------------
+   * GİRİŞ
+   * ---------------------------------------------------------
+   */
 
   async function handleLogin(
     cleanEmail: string,
     cleanPassword: string
   ) {
-    const { data, error } =
-      await supabase.auth.signInWithPassword({
-        email: cleanEmail,
-        password: cleanPassword,
-      });
+    const {
+      data,
+      error,
+    } =
+      await supabase.auth.signInWithPassword(
+        {
+          email: cleanEmail,
+          password: cleanPassword,
+        }
+      );
 
     if (error) {
       setErrorMessage(
-        getLoginErrorMessage(error.message)
+        getLoginErrorMessage(
+          error.message
+        )
       );
 
       setSubmitting(false);
+
       return;
     }
 
@@ -133,43 +322,77 @@ export default function AuthPage() {
       );
 
       setSubmitting(false);
+
       return;
     }
 
-    router.replace("/village");
+    /*
+     * -------------------------------------------------------
+     * BAŞARILI GİRİŞ
+     * -------------------------------------------------------
+     *
+     * ONBOARDING YOK.
+     *
+     * Kullanıcı doğrudan dashboard'a gider.
+     */
+
+    router.replace("/dashboard");
   }
+
+  /*
+   * ---------------------------------------------------------
+   * KAYIT
+   * ---------------------------------------------------------
+   */
 
   async function handleSignup(
     cleanEmail: string,
     cleanPassword: string
   ) {
-    const { data, error } =
+    const {
+      data,
+      error,
+    } =
       await supabase.auth.signUp({
         email: cleanEmail,
         password: cleanPassword,
+
         options: {
           data: {
-            full_name: fullName.trim(),
+            full_name:
+              fullName.trim(),
           },
+
+          /*
+           * E-posta doğrulaması sonrası
+           * kullanıcı tekrar auth sayfasına gelir.
+           */
+
+          emailRedirectTo:
+            `${window.location.origin}/auth`,
         },
       });
 
+    /*
+     * Supabase hata verdi.
+     */
+
     if (error) {
       setErrorMessage(
-        getAuthErrorMessage(error.message)
+        getAuthErrorMessage(
+          error.message
+        )
       );
 
       setSubmitting(false);
+
       return;
     }
 
     /*
-     * Supabase bazı projelerde zaten kayıtlı bir
-     * e-posta için kullanıcı nesnesi döndürebilir.
-     *
-     * identities boş ise mevcut bir kullanıcı
-     * olma ihtimali vardır.
+     * Mevcut e-posta kontrolü.
      */
+
     if (
       data.user &&
       data.user.identities &&
@@ -180,31 +403,52 @@ export default function AuthPage() {
       );
 
       setSubmitting(false);
+
       return;
     }
 
     /*
-     * E-posta doğrulama kapalıysa Supabase session
-     * oluşturabilir. Bu durumda kullanıcıyı direkt
-     * onboarding sayfasına gönderiyoruz.
+     * -------------------------------------------------------
+     * SESSION VARSA
+     * -------------------------------------------------------
+     *
+     * Email confirmation kapalıysa kullanıcı
+     * direkt giriş yapmış olur.
+     *
+     * ONBOARDING YOK.
      */
-    if (data.session && data.user) {
-      router.replace("/onboarding");
+
+    if (
+      data.session &&
+      data.user
+    ) {
+      router.replace("/dashboard");
+
       return;
     }
 
     /*
-     * E-posta doğrulama açıksa session henüz oluşmaz.
-     * Kullanıcıdan e-postasını kontrol etmesini istiyoruz.
+     * -------------------------------------------------------
+     * EMAIL CONFIRMATION AÇIKSA
+     * -------------------------------------------------------
      */
+
     setSuccessMessage(
-      "Hesabın oluşturuldu. E-posta adresini doğrulamak için gelen kutunu ve spam klasörünü kontrol et."
+      "Hesabın oluşturuldu. E-posta adresine gönderdiğimiz doğrulama bağlantısına tıkla. Doğrulama tamamlandığında giriş yapabilirsin."
     );
 
     setMode("login");
+
     setPassword("");
+
     setSubmitting(false);
   }
+
+  /*
+   * ---------------------------------------------------------
+   * ŞİFRE SIFIRLAMA
+   * ---------------------------------------------------------
+   */
 
   async function handleForgotPassword(
     cleanEmail: string
@@ -212,7 +456,9 @@ export default function AuthPage() {
     setSubmitting(true);
 
     try {
-      const { error } =
+      const {
+        error,
+      } =
         await supabase.auth.resetPasswordForEmail(
           cleanEmail,
           {
@@ -227,6 +473,7 @@ export default function AuthPage() {
         );
 
         setSubmitting(false);
+
         return;
       }
 
@@ -249,32 +496,52 @@ export default function AuthPage() {
     }
   }
 
-  function getLoginErrorMessage(message: string) {
+  /*
+   * ---------------------------------------------------------
+   * GİRİŞ HATALARI
+   * ---------------------------------------------------------
+   */
+
+  function getLoginErrorMessage(
+    message: string
+  ) {
     const lowerMessage =
       message.toLowerCase();
 
     if (
-      lowerMessage.includes("invalid login credentials")
+      lowerMessage.includes(
+        "invalid login credentials"
+      )
     ) {
       return "E-posta veya şifre hatalı.";
     }
 
     if (
-      lowerMessage.includes("email not confirmed")
+      lowerMessage.includes(
+        "email not confirmed"
+      )
     ) {
       return "Önce e-posta adresini doğrulaman gerekiyor.";
     }
 
     if (
-      lowerMessage.includes("too many requests") ||
-      lowerMessage.includes("rate limit")
+      lowerMessage.includes(
+        "too many requests"
+      ) ||
+      lowerMessage.includes(
+        "rate limit"
+      )
     ) {
       return "Çok fazla giriş denemesi yapıldı. Birkaç dakika sonra tekrar dene.";
     }
 
     if (
-      lowerMessage.includes("network") ||
-      lowerMessage.includes("fetch")
+      lowerMessage.includes(
+        "network"
+      ) ||
+      lowerMessage.includes(
+        "fetch"
+      )
     ) {
       return "Bağlantı kurulamadı. İnternet bağlantını kontrol edip tekrar dene.";
     }
@@ -282,7 +549,15 @@ export default function AuthPage() {
     return "E-posta veya şifre hatalı.";
   }
 
-  function getAuthErrorMessage(message: string) {
+  /*
+   * ---------------------------------------------------------
+   * KAYIT HATALARI
+   * ---------------------------------------------------------
+   */
+
+  function getAuthErrorMessage(
+    message: string
+  ) {
     const lowerMessage =
       message.toLowerCase();
 
@@ -290,8 +565,12 @@ export default function AuthPage() {
       lowerMessage.includes(
         "user already registered"
       ) ||
-      lowerMessage.includes("email_exists") ||
-      lowerMessage.includes("already registered")
+      lowerMessage.includes(
+        "email_exists"
+      ) ||
+      lowerMessage.includes(
+        "already registered"
+      )
     ) {
       return "Bu e-posta adresiyle zaten bir hesap var. Lütfen giriş yap.";
     }
@@ -305,22 +584,34 @@ export default function AuthPage() {
     }
 
     if (
-      lowerMessage.includes("rate limit") ||
-      lowerMessage.includes("too many requests")
+      lowerMessage.includes(
+        "rate limit"
+      ) ||
+      lowerMessage.includes(
+        "too many requests"
+      )
     ) {
       return "Çok fazla işlem yapıldı. Birkaç dakika sonra tekrar dene.";
     }
 
     if (
-      lowerMessage.includes("email address") &&
-      lowerMessage.includes("invalid")
+      lowerMessage.includes(
+        "email address"
+      ) &&
+      lowerMessage.includes(
+        "invalid"
+      )
     ) {
       return "Geçerli bir e-posta adresi gir.";
     }
 
     if (
-      lowerMessage.includes("network") ||
-      lowerMessage.includes("fetch")
+      lowerMessage.includes(
+        "network"
+      ) ||
+      lowerMessage.includes(
+        "fetch"
+      )
     ) {
       return "Bağlantı kurulamadı. İnternet bağlantını kontrol edip tekrar dene.";
     }
@@ -328,31 +619,46 @@ export default function AuthPage() {
     return "Hesap oluşturulurken bir hata oluştu. Lütfen tekrar dene.";
   }
 
+  /*
+   * ---------------------------------------------------------
+   * LOADING
+   * ---------------------------------------------------------
+   */
+
   if (loading) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-slate-50">
         <div className="text-center">
+
           <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-indigo-600" />
 
           <p className="mt-4 text-sm font-semibold text-slate-500">
             Yükleniyor...
           </p>
+
         </div>
       </main>
     );
   }
 
+  /*
+   * ---------------------------------------------------------
+   * SAYFA
+   * ---------------------------------------------------------
+   */
+
   return (
     <main className="min-h-screen bg-slate-50">
 
-      {/* HEADER */}
-
       <header className="border-b border-slate-100 bg-white">
+
         <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
 
           <button
             type="button"
-            onClick={() => router.push("/")}
+            onClick={() =>
+              router.push("/")
+            }
             className="text-2xl font-black tracking-tight"
           >
             Sınav
@@ -363,16 +669,17 @@ export default function AuthPage() {
 
           <button
             type="button"
-            onClick={() => router.push("/")}
+            onClick={() =>
+              router.push("/")
+            }
             className="rounded-xl px-4 py-2 text-sm font-bold text-slate-600 transition hover:bg-slate-50 hover:text-slate-900"
           >
             ← Ana Sayfa
           </button>
 
         </div>
-      </header>
 
-      {/* AUTH SECTION */}
+      </header>
 
       <section className="relative flex min-h-[calc(100vh-5rem)] items-center overflow-hidden px-4 py-10 sm:px-6 lg:px-8">
 
@@ -381,8 +688,6 @@ export default function AuthPage() {
         <div className="absolute -right-32 bottom-10 h-80 w-80 rounded-full bg-violet-200/30 blur-3xl" />
 
         <div className="relative mx-auto grid w-full max-w-6xl items-center gap-12 lg:grid-cols-2">
-
-          {/* LEFT SIDE */}
 
           <div className="hidden lg:block">
 
@@ -393,17 +698,22 @@ export default function AuthPage() {
               </div>
 
               <h1 className="mt-6 text-5xl font-black leading-tight tracking-tight text-slate-900">
+
                 Hedefine giden
+
                 <span className="block text-indigo-600">
                   yolu birlikte planla.
                 </span>
+
               </h1>
 
               <p className="mt-5 text-base leading-7 text-slate-500">
+
                 Hedeflerini, görevlerini,
                 konularını, kaynaklarını ve
                 deneme sonuçlarını tek bir
                 yerde yönet.
+
               </p>
 
               <div className="mt-8 space-y-4">
@@ -415,10 +725,12 @@ export default function AuthPage() {
                   "Deneme sonuçlarını kaydet",
                   "İlerlemeni analiz et",
                 ].map((item) => (
+
                   <div
                     key={item}
                     className="flex items-center gap-3"
                   >
+
                     <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-50 text-sm font-black text-emerald-600">
                       ✓
                     </div>
@@ -426,7 +738,9 @@ export default function AuthPage() {
                     <span className="text-sm font-bold text-slate-700">
                       {item}
                     </span>
+
                   </div>
+
                 ))}
 
               </div>
@@ -435,13 +749,9 @@ export default function AuthPage() {
 
           </div>
 
-          {/* AUTH CARD */}
-
           <div className="mx-auto w-full max-w-md">
 
             <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/50 sm:p-8">
-
-              {/* CARD HEADER */}
 
               <div className="text-center">
 
@@ -454,26 +764,29 @@ export default function AuthPage() {
                 </div>
 
                 <h2 className="mt-5 text-2xl font-black text-slate-900">
+
                   {mode === "login"
                     ? "Tekrar hoş geldin!"
                     : mode === "signup"
                     ? "Sınav Köyü'ne katıl"
                     : "Şifreni mi unuttun?"}
+
                 </h2>
 
                 <p className="mt-2 text-sm leading-6 text-slate-500">
+
                   {mode === "login"
                     ? "Hesabına giriş yap ve çalışmaya devam et."
                     : mode === "signup"
                     ? "Hesabını oluştur ve YKS hazırlığını düzenlemeye başla."
                     : "E-posta adresini gir. Sana şifre sıfırlama bağlantısı gönderelim."}
+
                 </p>
 
               </div>
 
-              {/* LOGIN / SIGNUP SWITCH */}
-
               {mode !== "forgot" && (
+
                 <div className="mt-7 grid grid-cols-2 rounded-xl bg-slate-100 p-1">
 
                   <button
@@ -507,40 +820,38 @@ export default function AuthPage() {
                   </button>
 
                 </div>
+
               )}
 
-              {/* ERROR */}
-
               {errorMessage && (
+
                 <div
                   role="alert"
                   className="mt-5 rounded-xl border border-red-100 bg-red-50 p-3.5 text-sm font-semibold leading-5 text-red-600"
                 >
                   {errorMessage}
                 </div>
+
               )}
 
-              {/* SUCCESS */}
-
               {successMessage && (
+
                 <div
                   role="status"
                   className="mt-5 rounded-xl border border-emerald-100 bg-emerald-50 p-3.5 text-sm font-semibold leading-5 text-emerald-600"
                 >
                   {successMessage}
                 </div>
-              )}
 
-              {/* FORM */}
+              )}
 
               <form
                 onSubmit={handleSubmit}
                 className="mt-6 space-y-4"
               >
 
-                {/* FULL NAME */}
-
                 {mode === "signup" && (
+
                   <div>
 
                     <label
@@ -566,9 +877,8 @@ export default function AuthPage() {
                     />
 
                   </div>
-                )}
 
-                {/* EMAIL */}
+                )}
 
                 <div>
 
@@ -597,9 +907,8 @@ export default function AuthPage() {
 
                 </div>
 
-                {/* PASSWORD */}
-
                 {mode !== "forgot" && (
+
                   <div>
 
                     <div className="mb-2 flex items-center justify-between">
@@ -612,9 +921,11 @@ export default function AuthPage() {
                       </label>
 
                       {mode === "signup" && (
+
                         <span className="text-xs font-semibold text-slate-400">
                           En az 6 karakter
                         </span>
+
                       )}
 
                     </div>
@@ -641,11 +952,11 @@ export default function AuthPage() {
                     />
 
                   </div>
+
                 )}
 
-                {/* FORGOT PASSWORD */}
-
                 {mode === "login" && (
+
                   <div className="flex justify-end">
 
                     <button
@@ -660,15 +971,15 @@ export default function AuthPage() {
                     </button>
 
                   </div>
-                )}
 
-                {/* SUBMIT */}
+                )}
 
                 <button
                   type="submit"
                   disabled={submitting}
                   className="w-full rounded-xl bg-indigo-600 px-5 py-3.5 text-sm font-black text-white shadow-sm transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
                 >
+
                   {submitting
                     ? mode === "login"
                       ? "Giriş yapılıyor..."
@@ -680,15 +991,15 @@ export default function AuthPage() {
                     : mode === "signup"
                     ? "Hesap Oluştur →"
                     : "Sıfırlama Bağlantısı Gönder →"}
+
                 </button>
 
               </form>
 
-              {/* BOTTOM SWITCH */}
-
               <div className="mt-6 border-t border-slate-100 pt-5 text-center">
 
                 {mode === "forgot" ? (
+
                   <>
                     <p className="text-xs leading-5 text-slate-400">
                       Şifreni hatırladın mı?
@@ -705,12 +1016,17 @@ export default function AuthPage() {
                       ← Giriş yap
                     </button>
                   </>
+
                 ) : (
+
                   <>
+
                     <p className="text-xs leading-5 text-slate-400">
+
                       {mode === "login"
                         ? "Henüz hesabın yok mu?"
                         : "Zaten hesabın var mı?"}
+
                     </p>
 
                     <button
@@ -725,25 +1041,29 @@ export default function AuthPage() {
                       disabled={submitting}
                       className="mt-1 text-sm font-black text-indigo-600 hover:text-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
                     >
+
                       {mode === "login"
                         ? "Ücretsiz hesap oluştur"
                         : "Giriş yap"}
+
                     </button>
+
                   </>
+
                 )}
 
               </div>
 
             </div>
 
-            {/* SECURITY NOTE */}
-
             <div className="mt-5 flex items-center justify-center gap-2 text-xs font-semibold text-slate-400">
+
               <span>🔒</span>
 
               <span>
                 Hesabın güvenli şekilde korunuyor.
               </span>
+
             </div>
 
           </div>

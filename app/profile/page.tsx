@@ -1,6 +1,10 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import {
+  FormEvent,
+  useEffect,
+  useState,
+} from "react";
 import { supabase } from "@/lib/supabase";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
@@ -14,20 +18,35 @@ type Profile = {
   target_rank: number | null;
 };
 
-type ModalType = "success" | "error" | "confirm" | null;
+type ModalType =
+  | "success"
+  | "error"
+  | "confirm"
+  | "delete"
+  | null;
 
 export default function ProfilePage() {
   const [email, setEmail] = useState("");
   const [fullName, setFullName] = useState("");
-  const [examYear, setExamYear] = useState("2027");
-  const [field, setField] = useState("sayisal");
-  const [targetUniversity, setTargetUniversity] = useState("");
-  const [targetDepartment, setTargetDepartment] = useState("");
-  const [targetRank, setTargetRank] = useState("");
+  const [examYear, setExamYear] =
+    useState("2027");
+  const [field, setField] =
+    useState("sayisal");
+  const [targetUniversity, setTargetUniversity] =
+    useState("");
+  const [targetDepartment, setTargetDepartment] =
+    useState("");
+  const [targetRank, setTargetRank] =
+    useState("");
 
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [signingOut, setSigningOut] = useState(false);
+  const [loading, setLoading] =
+    useState(true);
+  const [saving, setSaving] =
+    useState(false);
+  const [signingOut, setSigningOut] =
+    useState(false);
+  const [deletingAccount, setDeletingAccount] =
+    useState(false);
 
   const [modalType, setModalType] =
     useState<ModalType>(null);
@@ -37,10 +56,6 @@ export default function ProfilePage() {
 
   const [modalMessage, setModalMessage] =
     useState("");
-
-  useEffect(() => {
-    loadProfile();
-  }, []);
 
   function showModal(
     type: Exclude<ModalType, null>,
@@ -58,81 +73,127 @@ export default function ProfilePage() {
     setModalMessage("");
   }
 
+  /*
+   * ---------------------------------------------------------
+   * PROFİLİ YÜKLE
+   * ---------------------------------------------------------
+   */
+
   async function loadProfile() {
     setLoading(true);
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    try {
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
 
-    if (!user) {
-      window.location.replace("/auth");
-      return;
-    }
+      if (userError) {
+        console.error(
+          "Kullanıcı bilgisi alınamadı:",
+          userError.message
+        );
 
-    setEmail(user.email || "");
+        showModal(
+          "error",
+          "Profil yüklenemedi",
+          "Hesap bilgilerin alınırken bir hata oluştu. Lütfen sayfayı yenileyip tekrar dene."
+        );
 
-    const { data, error } = await supabase
-      .from("profiles")
-      .select(
-        "full_name, exam_year, field, target_university, target_department, target_rank"
-      )
-      .eq("id", user.id)
-      .maybeSingle();
+        setLoading(false);
+        return;
+      }
 
-    if (error) {
+      if (!user) {
+        window.location.replace("/auth");
+        return;
+      }
+
+      setEmail(user.email || "");
+
+      const { data, error } =
+        await supabase
+          .from("profiles")
+          .select(
+            "full_name, exam_year, field, target_university, target_department, target_rank"
+          )
+          .eq("id", user.id)
+          .maybeSingle();
+
+      if (error) {
+        console.error(
+          "Profil yükleme hatası:",
+          error.message,
+          error.code
+        );
+
+        showModal(
+          "error",
+          "Profil yüklenemedi",
+          "Profil bilgilerin alınırken bir hata oluştu. Lütfen sayfayı yenileyip tekrar dene."
+        );
+
+        setLoading(false);
+        return;
+      }
+
+      if (data) {
+        const profile = data as Profile;
+
+        setFullName(
+          profile.full_name || ""
+        );
+
+        setExamYear(
+          profile.exam_year
+            ? String(profile.exam_year)
+            : "2027"
+        );
+
+        setField(
+          profile.field || "sayisal"
+        );
+
+        setTargetUniversity(
+          profile.target_university || ""
+        );
+
+        setTargetDepartment(
+          profile.target_department || ""
+        );
+
+        setTargetRank(
+          profile.target_rank !== null &&
+          profile.target_rank !== undefined
+            ? String(profile.target_rank)
+            : ""
+        );
+      }
+    } catch (error) {
       console.error(
-        "Profil yükleme hatası:",
-        error.message,
-        error.details,
-        error.code
+        "Profil yüklenirken beklenmeyen hata:",
+        error
       );
 
       showModal(
         "error",
         "Profil yüklenemedi",
-        "Profil bilgilerin alınırken bir hata oluştu. Lütfen sayfayı yenileyip tekrar dene."
+        "Profil bilgilerin alınırken beklenmeyen bir hata oluştu."
       );
-
+    } finally {
       setLoading(false);
-      return;
     }
-
-    if (data) {
-      const profile = data as Profile;
-
-      setFullName(
-        profile.full_name || ""
-      );
-
-      setExamYear(
-        profile.exam_year
-          ? String(profile.exam_year)
-          : "2027"
-      );
-
-      setField(
-        profile.field || "sayisal"
-      );
-
-      setTargetUniversity(
-        profile.target_university || ""
-      );
-
-      setTargetDepartment(
-        profile.target_department || ""
-      );
-
-      setTargetRank(
-        profile.target_rank !== null &&
-        profile.target_rank !== undefined
-          ? String(profile.target_rank)
-          : ""
-      );
-    }
-
-    setLoading(false);
   }
+
+  useEffect(() => {
+    void loadProfile();
+  }, []);
+
+  /*
+   * ---------------------------------------------------------
+   * PROFİL KAYDET
+   * ---------------------------------------------------------
+   */
 
   async function saveProfile(
     event: FormEvent<HTMLFormElement>
@@ -141,9 +202,12 @@ export default function ProfilePage() {
 
     closeModal();
 
-    const cleanName = fullName.trim();
+    const cleanName =
+      fullName.trim();
+
     const cleanUniversity =
       targetUniversity.trim();
+
     const cleanDepartment =
       targetDepartment.trim();
 
@@ -222,52 +286,122 @@ export default function ProfilePage() {
 
     setSaving(true);
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    try {
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
 
-    if (!user) {
+      if (userError || !user) {
+        setSaving(false);
+
+        showModal(
+          "error",
+          "Oturum bulunamadı",
+          "Oturumun sona ermiş olabilir. Lütfen tekrar giriş yap."
+        );
+
+        setTimeout(() => {
+          window.location.replace("/auth");
+        }, 1800);
+
+        return;
+      }
+
+      const updateData = {
+        full_name: cleanName,
+        exam_year: Number(examYear),
+        field,
+        target_university:
+          cleanUniversity || null,
+        target_department:
+          cleanDepartment || null,
+        target_rank: rank,
+      };
+
+      const { data, error } =
+        await supabase
+          .from("profiles")
+          .update(updateData)
+          .eq("id", user.id)
+          .select(
+            "full_name, exam_year, field, target_university, target_department, target_rank"
+          )
+          .maybeSingle();
+
+      if (error) {
+        console.error(
+          "Profil kaydetme hatası:",
+          error.message,
+          error.code
+        );
+
+        setSaving(false);
+
+        showModal(
+          "error",
+          "Profil kaydedilemedi",
+          "Değişikliklerin kaydedilirken bir hata oluştu. Lütfen tekrar dene."
+        );
+
+        return;
+      }
+
+      if (!data) {
+        setSaving(false);
+
+        showModal(
+          "error",
+          "Profil güncellenemedi",
+          "Profil kaydı bulunamadı veya güncellenemedi. Lütfen tekrar dene."
+        );
+
+        return;
+      }
+
+      const profile =
+        data as Profile;
+
+      setFullName(
+        profile.full_name || ""
+      );
+
+      setExamYear(
+        profile.exam_year
+          ? String(profile.exam_year)
+          : "2027"
+      );
+
+      setField(
+        profile.field || "sayisal"
+      );
+
+      setTargetUniversity(
+        profile.target_university || ""
+      );
+
+      setTargetDepartment(
+        profile.target_department || ""
+      );
+
+      setTargetRank(
+        profile.target_rank !== null &&
+        profile.target_rank !== undefined
+          ? String(profile.target_rank)
+          : ""
+      );
+
       setSaving(false);
 
       showModal(
-        "error",
-        "Oturum bulunamadı",
-        "Oturumun sona ermiş olabilir. Lütfen tekrar giriş yap."
+        "success",
+        "Profil güncellendi",
+        "Profil ve YKS hedeflerin başarıyla kaydedildi."
       );
-
-      setTimeout(() => {
-        window.location.replace("/auth");
-      }, 1800);
-
-      return;
-    }
-
-    const updateData = {
-      full_name: cleanName,
-      exam_year: Number(examYear),
-      field,
-      target_university:
-        cleanUniversity || null,
-      target_department:
-        cleanDepartment || null,
-      target_rank: rank,
-    };
-
-    const { data, error } = await supabase
-      .from("profiles")
-      .update(updateData)
-      .eq("id", user.id)
-      .select(
-        "full_name, exam_year, field, target_university, target_department, target_rank"
-      )
-      .maybeSingle();
-
-    if (error) {
+    } catch (error) {
       console.error(
-        "Profil kaydetme hatası:",
-        error.message,
-        error.details,
-        error.code
+        "Profil kaydetme beklenmeyen hata:",
+        error
       );
 
       setSaving(false);
@@ -275,70 +409,23 @@ export default function ProfilePage() {
       showModal(
         "error",
         "Profil kaydedilemedi",
-        "Değişikliklerin kaydedilirken bir hata oluştu. Lütfen tekrar dene."
+        "Değişikliklerin kaydedilirken beklenmeyen bir hata oluştu."
       );
-
-      return;
     }
-
-    if (!data) {
-      console.error(
-        "Profil kaydedildi ancak kayıt geri döndürülmedi."
-      );
-
-      setSaving(false);
-
-      showModal(
-        "error",
-        "Profil güncellenemedi",
-        "Profil kaydı bulunamadı veya güncellenemedi. Lütfen tekrar dene."
-      );
-
-      return;
-    }
-
-    const profile = data as Profile;
-
-    setFullName(
-      profile.full_name || ""
-    );
-
-    setExamYear(
-      profile.exam_year
-        ? String(profile.exam_year)
-        : "2027"
-    );
-
-    setField(
-      profile.field || "sayisal"
-    );
-
-    setTargetUniversity(
-      profile.target_university || ""
-    );
-
-    setTargetDepartment(
-      profile.target_department || ""
-    );
-
-    setTargetRank(
-      profile.target_rank !== null &&
-      profile.target_rank !== undefined
-        ? String(profile.target_rank)
-        : ""
-    );
-
-    setSaving(false);
-
-    showModal(
-      "success",
-      "Profil güncellendi",
-      "Profil ve YKS hedeflerin başarıyla kaydedildi."
-    );
   }
 
+  /*
+   * ---------------------------------------------------------
+   * ÇIKIŞ
+   * ---------------------------------------------------------
+   */
+
   function requestSignOut() {
-    if (saving || signingOut) {
+    if (
+      saving ||
+      signingOut ||
+      deletingAccount
+    ) {
       return;
     }
 
@@ -351,15 +438,37 @@ export default function ProfilePage() {
 
   async function confirmSignOut() {
     closeModal();
+
     setSigningOut(true);
 
-    const { error } =
-      await supabase.auth.signOut();
+    try {
+      const { error } =
+        await supabase.auth.signOut();
 
-    if (error) {
+      if (error) {
+        console.error(
+          "Çıkış hatası:",
+          error.message
+        );
+
+        setSigningOut(false);
+
+        showModal(
+          "error",
+          "Çıkış yapılamadı",
+          "Hesabından çıkış yapılırken bir hata oluştu. Lütfen tekrar dene."
+        );
+
+        return;
+      }
+
+      window.location.replace(
+        "/auth"
+      );
+    } catch (error) {
       console.error(
-        "Çıkış hatası:",
-        error.message
+        "Çıkış beklenmeyen hata:",
+        error
       );
 
       setSigningOut(false);
@@ -367,14 +476,190 @@ export default function ProfilePage() {
       showModal(
         "error",
         "Çıkış yapılamadı",
-        "Hesabından çıkış yapılırken bir hata oluştu. Lütfen tekrar dene."
+        "Hesabından çıkış yapılırken beklenmeyen bir hata oluştu."
       );
+    }
+  }
 
+  /*
+   * ---------------------------------------------------------
+   * HESAP SİLME İSTEĞİ
+   * ---------------------------------------------------------
+   */
+
+  function requestDeleteAccount() {
+    if (
+      saving ||
+      signingOut ||
+      deletingAccount
+    ) {
       return;
     }
 
-    window.location.replace("/auth");
+    showModal(
+      "delete",
+      "Hesabını silmek üzeresin",
+      "Bu işlem hesabını ve hesabına bağlı verileri kalıcı olarak silmek için kullanılacaktır. Bu işlem geri alınamaz."
+    );
   }
+
+  /*
+   * ---------------------------------------------------------
+   * HESABI SİL
+   * ---------------------------------------------------------
+   */
+
+  async function confirmDeleteAccount() {
+    closeModal();
+
+    setDeletingAccount(true);
+
+    try {
+      const {
+        data: { session },
+        error: sessionError,
+      } =
+        await supabase.auth.getSession();
+
+      if (
+        sessionError ||
+        !session?.access_token
+      ) {
+        console.error(
+          "Oturum alınamadı:",
+          sessionError?.message
+        );
+
+        setDeletingAccount(false);
+
+        showModal(
+          "error",
+          "Oturum bulunamadı",
+          "Hesabını silebilmek için tekrar giriş yapman gerekiyor."
+        );
+
+        return;
+      }
+
+      const response =
+        await fetch(
+          "/api/account/delete",
+          {
+            method: "DELETE",
+            headers: {
+              Authorization: `Bearer ${session.access_token}`,
+              Accept: "application/json",
+            },
+          }
+        );
+
+      /*
+       * API cevabını önce TEXT olarak alıyoruz.
+       *
+       * Böylece API JSON yerine HTML veya başka
+       * bir cevap döndürürse JSON.parse hatası oluşmaz.
+       */
+
+      const responseText =
+        await response.text();
+
+      console.log(
+        "Hesap silme API cevap bilgisi:",
+        {
+          status: response.status,
+          statusText:
+            response.statusText,
+          contentType:
+            response.headers.get(
+              "content-type"
+            ),
+          body: responseText,
+        }
+      );
+
+      let result: {
+        error?: string;
+        message?: string;
+        success?: boolean;
+      } = {};
+
+      if (responseText) {
+        try {
+          result =
+            JSON.parse(
+              responseText
+            );
+        } catch (parseError) {
+          console.error(
+            "API cevabı JSON değil:",
+            parseError
+          );
+        }
+      }
+
+      if (!response.ok) {
+        console.error(
+          "Hesap silme API hatası:",
+          {
+            status:
+              response.status,
+            statusText:
+              response.statusText,
+            result,
+            rawBody:
+              responseText,
+          }
+        );
+
+        setDeletingAccount(false);
+
+        showModal(
+          "error",
+          "Hesap silinemedi",
+          result.error ||
+            "Hesabın silinirken bir hata oluştu. Lütfen biraz sonra tekrar dene."
+        );
+
+        return;
+      }
+
+      console.log(
+        "Hesap başarıyla silindi:",
+        result
+      );
+
+      /*
+       * Kullanıcı hesabı server tarafında
+       * başarıyla silindikten sonra client
+       * oturumunu da temizliyoruz.
+       */
+
+      await supabase.auth.signOut();
+
+      window.location.replace(
+        "/auth?deleted=1"
+      );
+    } catch (error) {
+      console.error(
+        "Hesap silme beklenmeyen hata:",
+        error
+      );
+
+      setDeletingAccount(false);
+
+      showModal(
+        "error",
+        "Hesap silinemedi",
+        "Hesabın silinirken beklenmeyen bir hata oluştu. Lütfen biraz sonra tekrar dene."
+      );
+    }
+  }
+
+  /*
+   * ---------------------------------------------------------
+   * ALAN ADI
+   * ---------------------------------------------------------
+   */
 
   function getFieldName() {
     if (field === "sayisal") {
@@ -396,22 +681,37 @@ export default function ProfilePage() {
     return "Belirlenmedi";
   }
 
+  /*
+   * ---------------------------------------------------------
+   * LOADING
+   * ---------------------------------------------------------
+   */
+
   if (loading) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-slate-50">
         <div className="text-center">
+
           <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-indigo-600" />
 
           <p className="mt-4 text-sm font-semibold text-slate-500">
             Profil yükleniyor...
           </p>
+
         </div>
       </main>
     );
   }
 
+  /*
+   * ---------------------------------------------------------
+   * PAGE
+   * ---------------------------------------------------------
+   */
+
   return (
     <main className="min-h-screen bg-slate-50">
+
       <div className="flex min-h-screen">
 
         <Sidebar />
@@ -422,7 +722,7 @@ export default function ProfilePage() {
 
           <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
 
-            {/* PAGE HEADER */}
+            {/* PAGE TITLE */}
 
             <div className="mb-6">
 
@@ -441,11 +741,9 @@ export default function ProfilePage() {
 
             </div>
 
-            {/* CONTENT */}
-
             <div className="grid gap-6 lg:grid-cols-3">
 
-              {/* PROFILE FORM */}
+              {/* LEFT */}
 
               <section className="rounded-2xl bg-white p-6 shadow-sm lg:col-span-2">
 
@@ -516,7 +814,10 @@ export default function ProfilePage() {
                       }
                       placeholder="Ad Soyad"
                       maxLength={100}
-                      disabled={saving}
+                      disabled={
+                        saving ||
+                        deletingAccount
+                      }
                       className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 disabled:cursor-not-allowed disabled:bg-slate-50"
                     />
 
@@ -537,7 +838,10 @@ export default function ProfilePage() {
                           e.target.value
                         )
                       }
-                      disabled={saving}
+                      disabled={
+                        saving ||
+                        deletingAccount
+                      }
                       className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 disabled:cursor-not-allowed disabled:bg-slate-50"
                     >
 
@@ -557,7 +861,7 @@ export default function ProfilePage() {
 
                   </div>
 
-                  {/* YKS GOALS */}
+                  {/* YKS */}
 
                   <div className="mt-8 border-t border-slate-100 pt-6">
 
@@ -587,7 +891,10 @@ export default function ProfilePage() {
                           e.target.value
                         )
                       }
-                      disabled={saving}
+                      disabled={
+                        saving ||
+                        deletingAccount
+                      }
                       className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 disabled:cursor-not-allowed disabled:bg-slate-50"
                     >
 
@@ -628,7 +935,10 @@ export default function ProfilePage() {
                       }
                       placeholder="Örn: Bartın Üniversitesi"
                       maxLength={200}
-                      disabled={saving}
+                      disabled={
+                        saving ||
+                        deletingAccount
+                      }
                       className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 disabled:cursor-not-allowed disabled:bg-slate-50"
                     />
 
@@ -651,7 +961,10 @@ export default function ProfilePage() {
                       }
                       placeholder="Örn: Bilgisayar Mühendisliği"
                       maxLength={200}
-                      disabled={saving}
+                      disabled={
+                        saving ||
+                        deletingAccount
+                      }
                       className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 disabled:cursor-not-allowed disabled:bg-slate-50"
                     />
 
@@ -675,7 +988,10 @@ export default function ProfilePage() {
                         )
                       }
                       placeholder="Örn: 100000"
-                      disabled={saving}
+                      disabled={
+                        saving ||
+                        deletingAccount
+                      }
                       className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 disabled:cursor-not-allowed disabled:bg-slate-50"
                     />
 
@@ -690,25 +1006,26 @@ export default function ProfilePage() {
 
                   <button
                     type="submit"
-                    disabled={saving}
+                    disabled={
+                      saving ||
+                      deletingAccount
+                    }
                     className="mt-8 w-full rounded-xl bg-indigo-600 px-6 py-3.5 text-sm font-black text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
                   >
-
                     {saving
                       ? "Kaydediliyor..."
                       : "Değişiklikleri Kaydet"}
-
                   </button>
 
                 </form>
 
               </section>
 
-              {/* RIGHT SIDE */}
+              {/* RIGHT */}
 
               <div className="space-y-6">
 
-                {/* GOAL SUMMARY */}
+                {/* TARGET SUMMARY */}
 
                 <section className="rounded-2xl bg-white p-6 shadow-sm">
 
@@ -722,8 +1039,6 @@ export default function ProfilePage() {
 
                   <div className="mt-5 space-y-4">
 
-                    {/* EXAM */}
-
                     <div className="rounded-xl bg-slate-50 p-4">
 
                       <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
@@ -736,8 +1051,6 @@ export default function ProfilePage() {
 
                     </div>
 
-                    {/* FIELD */}
-
                     <div className="rounded-xl bg-slate-50 p-4">
 
                       <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
@@ -749,8 +1062,6 @@ export default function ProfilePage() {
                       </p>
 
                     </div>
-
-                    {/* UNIVERSITY */}
 
                     <div className="rounded-xl bg-slate-50 p-4">
 
@@ -765,8 +1076,6 @@ export default function ProfilePage() {
 
                     </div>
 
-                    {/* DEPARTMENT */}
-
                     <div className="rounded-xl bg-slate-50 p-4">
 
                       <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
@@ -779,8 +1088,6 @@ export default function ProfilePage() {
                       </p>
 
                     </div>
-
-                    {/* RANK */}
 
                     <div className="rounded-xl bg-indigo-50 p-4">
 
@@ -813,21 +1120,49 @@ export default function ProfilePage() {
                   </h2>
 
                   <p className="mt-1 text-sm text-slate-500">
-                    Hesabından güvenli şekilde çıkış
-                    yapabilirsin.
+                    Hesabından çıkış yapabilir veya
+                    hesabını kalıcı olarak silebilirsin.
                   </p>
 
+                  {/* SIGN OUT */}
+
                   <button
-                    onClick={requestSignOut}
-                    disabled={saving || signingOut}
+                    onClick={
+                      requestSignOut
+                    }
+                    disabled={
+                      saving ||
+                      signingOut ||
+                      deletingAccount
+                    }
                     className="mt-5 w-full rounded-xl bg-red-50 px-5 py-3 text-sm font-black text-red-600 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
                   >
-
                     {signingOut
                       ? "Çıkış yapılıyor..."
                       : "Çıkış Yap"}
-
                   </button>
+
+                  {/* DELETE */}
+
+                  <button
+                    onClick={
+                      requestDeleteAccount
+                    }
+                    disabled={
+                      saving ||
+                      signingOut ||
+                      deletingAccount
+                    }
+                    className="mt-3 w-full rounded-xl border border-red-200 bg-white px-5 py-3 text-sm font-black text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {deletingAccount
+                      ? "Hesap siliniyor..."
+                      : "Hesabı Kalıcı Olarak Sil"}
+                  </button>
+
+                  <p className="mt-3 text-center text-xs leading-5 text-slate-400">
+                    Hesap silme işlemi geri alınamaz.
+                  </p>
 
                 </section>
 
@@ -838,6 +1173,7 @@ export default function ProfilePage() {
           </div>
 
         </div>
+
       </div>
 
       {/* MODAL */}
@@ -855,20 +1191,28 @@ export default function ProfilePage() {
 
             <div
               className={`mx-auto flex h-14 w-14 items-center justify-center rounded-2xl text-2xl ${
-                modalType === "success"
-                  ? "bg-emerald-50"
-                  : modalType === "error"
-                  ? "bg-red-50"
-                  : "bg-amber-50"
+                modalType ===
+                "success"
+                  ? "bg-emerald-50 text-emerald-600"
+                  : modalType ===
+                    "error"
+                  ? "bg-red-50 text-red-600"
+                  : modalType ===
+                    "delete"
+                  ? "bg-red-50 text-red-600"
+                  : "bg-amber-50 text-amber-600"
               }`}
             >
-
-              {modalType === "success"
+              {modalType ===
+                "success"
                 ? "✓"
-                : modalType === "error"
+                : modalType ===
+                  "error"
+                ? "!"
+                : modalType ===
+                  "delete"
                 ? "!"
                 : "?"}
-
             </div>
 
             {/* TEXT */}
@@ -885,34 +1229,82 @@ export default function ProfilePage() {
 
             </div>
 
-            {/* ACTIONS */}
+            {/* BUTTONS */}
 
             <div className="mt-6 flex gap-3">
 
-              {modalType === "confirm" ? (
+              {modalType ===
+              "confirm" ? (
                 <>
                   <button
                     type="button"
-                    onClick={closeModal}
-                    className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-black text-slate-700 transition hover:bg-slate-50"
+                    onClick={
+                      closeModal
+                    }
+                    disabled={
+                      deletingAccount ||
+                      signingOut
+                    }
+                    className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-black text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
                   >
                     Vazgeç
                   </button>
 
                   <button
                     type="button"
-                    onClick={confirmSignOut}
-                    className="flex-1 rounded-xl bg-red-600 px-4 py-3 text-sm font-black text-white transition hover:bg-red-700"
+                    onClick={
+                      confirmSignOut
+                    }
+                    disabled={
+                      signingOut
+                    }
+                    className="flex-1 rounded-xl bg-red-600 px-4 py-3 text-sm font-black text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    Çıkış Yap
+                    {signingOut
+                      ? "Çıkılıyor..."
+                      : "Çıkış Yap"}
+                  </button>
+                </>
+              ) : modalType ===
+                "delete" ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={
+                      closeModal
+                    }
+                    disabled={
+                      deletingAccount
+                    }
+                    className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-black text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
+                  >
+                    Vazgeç
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={
+                      confirmDeleteAccount
+                    }
+                    disabled={
+                      deletingAccount
+                    }
+                    className="flex-1 rounded-xl bg-red-600 px-4 py-3 text-sm font-black text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {deletingAccount
+                      ? "Siliniyor..."
+                      : "Evet, Hesabımı Sil"}
                   </button>
                 </>
               ) : (
                 <button
                   type="button"
-                  onClick={closeModal}
+                  onClick={
+                    closeModal
+                  }
                   className={`w-full rounded-xl px-4 py-3 text-sm font-black text-white transition ${
-                    modalType === "success"
+                    modalType ===
+                    "success"
                       ? "bg-emerald-600 hover:bg-emerald-700"
                       : "bg-red-600 hover:bg-red-700"
                   }`}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
@@ -55,32 +55,21 @@ type Resource = {
 };
 
 export default function DashboardPage() {
-  const [profile, setProfile] =
-    useState<Profile | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
 
-  const [tasks, setTasks] =
-    useState<Task[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
 
-  const [goals, setGoals] =
-    useState<Goal[]>([]);
+  const [goals, setGoals] = useState<Goal[]>([]);
 
-  const [exams, setExams] =
-    useState<Exam[]>([]);
+  const [exams, setExams] = useState<Exam[]>([]);
 
-  const [topicProgress, setTopicProgress] =
-    useState<UserTopic[]>([]);
+  const [topicProgress, setTopicProgress] = useState<UserTopic[]>([]);
 
-  const [resources, setResources] =
-    useState<Resource[]>([]);
+  const [resources, setResources] = useState<Resource[]>([]);
 
-  const [loading, setLoading] =
-    useState(true);
+  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadDashboard();
-  }, []);
-
-  async function loadDashboard() {
+  const loadDashboard = useCallback(async () => {
     setLoading(true);
 
     try {
@@ -136,8 +125,7 @@ export default function DashboardPage() {
       }
 
       const currentUser =
-        refreshedSessionData.session?.user ||
-        session.user;
+        refreshedSessionData.session?.user || session.user;
 
       if (!currentUser) {
         window.location.replace("/auth");
@@ -150,9 +138,7 @@ export default function DashboardPage() {
        * ---------------------------------------------------------
        */
 
-      const today = new Date()
-        .toISOString()
-        .split("T")[0];
+      const today = new Date().toISOString().split("T")[0];
 
       /*
        * ---------------------------------------------------------
@@ -312,11 +298,29 @@ export default function DashboardPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
+
+  /*
+   * ---------------------------------------------------------
+   * DASHBOARD'I YÜKLE
+   * ---------------------------------------------------------
+   *
+   * React 19'un set-state-in-effect lint kuralı nedeniyle
+   * loadDashboard doğrudan effect gövdesinde çağrılmıyor.
+   */
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void loadDashboard();
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [loadDashboard]);
 
   async function toggleTask(task: Task) {
-    const completed =
-      task.status === "completed";
+    const completed = task.status === "completed";
 
     const newStatus = completed
       ? "pending"
@@ -365,51 +369,38 @@ export default function DashboardPage() {
    */
 
   const completedTasks = tasks.filter(
-    (task) =>
-      task.status === "completed"
+    (task) => task.status === "completed"
   ).length;
 
   const taskProgress =
     tasks.length > 0
       ? Math.round(
-          (completedTasks / tasks.length) *
-            100
+          (completedTasks / tasks.length) * 100
         )
       : 0;
 
-  const completedTopics =
-    topicProgress.filter(
-      (topic) =>
-        topic.status === "completed"
-    ).length;
+  const completedTopics = topicProgress.filter(
+    (topic) => topic.status === "completed"
+  ).length;
 
-  const inProgressTopics =
-    topicProgress.filter(
-      (topic) =>
-        topic.status === "in_progress"
-    ).length;
+  const inProgressTopics = topicProgress.filter(
+    (topic) => topic.status === "in_progress"
+  ).length;
 
-  const totalTopics =
-    topicProgress.length;
+  const totalTopics = topicProgress.length;
 
   const topicPercentage =
     totalTopics > 0
       ? Math.round(
-          (completedTopics /
-            totalTopics) *
-            100
+          (completedTopics / totalTopics) * 100
         )
       : 0;
 
   const latestExam =
-    exams.length > 0
-      ? exams[0]
-      : null;
+    exams.length > 0 ? exams[0] : null;
 
   const previousExam =
-    exams.length > 1
-      ? exams[1]
-      : null;
+    exams.length > 1 ? exams[1] : null;
 
   const latestNet = latestExam
     ? Number(latestExam.total_net)
@@ -429,9 +420,7 @@ export default function DashboardPage() {
     resources.reduce(
       (total, resource) =>
         total +
-        Number(
-          resource.total_questions || 0
-        ),
+        Number(resource.total_questions || 0),
       0
     );
 
@@ -439,9 +428,7 @@ export default function DashboardPage() {
     resources.reduce(
       (total, resource) =>
         total +
-        Number(
-          resource.solved_questions || 0
-        ),
+        Number(resource.solved_questions || 0),
       0
     );
 
@@ -468,13 +455,11 @@ export default function DashboardPage() {
     return (
       <main className="flex min-h-screen items-center justify-center bg-slate-50">
         <div className="text-center">
-
           <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-indigo-600" />
 
           <p className="mt-4 text-sm font-medium text-slate-500">
             Dashboard yükleniyor...
           </p>
-
         </div>
       </main>
     );
@@ -482,13 +467,10 @@ export default function DashboardPage() {
 
   return (
     <main className="min-h-screen bg-slate-50">
-
       <div className="flex min-h-screen">
-
         <Sidebar />
 
         <div className="flex min-w-0 flex-1 flex-col">
-
           <Header />
 
           <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
@@ -498,14 +480,10 @@ export default function DashboardPage() {
             ===================================================== */}
 
             <section className="rounded-3xl bg-gradient-to-r from-indigo-600 to-violet-600 p-6 text-white shadow-sm sm:p-8">
-
               <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-
                 <div>
-
                   <p className="text-sm font-semibold text-indigo-100">
-                    YKS{" "}
-                    {profile?.exam_year || 2027}
+                    YKS {profile?.exam_year || 2027}
                   </p>
 
                   <h1 className="mt-2 text-3xl font-black sm:text-4xl">
@@ -517,24 +495,18 @@ export default function DashboardPage() {
                     Düzenli çalıştığında hedefin
                     sandığından daha yakın.
                   </p>
-
                 </div>
 
                 <button
                   onClick={() =>
-                    window.location.replace(
-                      "/tasks"
-                    )
+                    window.location.replace("/tasks")
                   }
                   className="rounded-xl bg-white px-5 py-3 text-sm font-bold text-indigo-600 shadow-sm transition hover:bg-indigo-50"
                 >
                   Bugünkü Görevler →
                 </button>
-
               </div>
-
             </section>
-
 
             {/* =====================================================
                 QUICK STATS
@@ -545,9 +517,7 @@ export default function DashboardPage() {
               {/* TASK */}
 
               <div className="rounded-2xl bg-white p-5 shadow-sm">
-
                 <div className="flex items-center justify-between">
-
                   <p className="text-sm font-semibold text-slate-500">
                     Bugünkü Görevler
                   </p>
@@ -555,38 +525,30 @@ export default function DashboardPage() {
                   <span className="rounded-xl bg-indigo-50 px-3 py-2 text-lg">
                     ✓
                   </span>
-
                 </div>
 
                 <p className="mt-4 text-3xl font-black text-slate-900">
-                  {completedTasks}/
-                  {tasks.length}
+                  {completedTasks}/{tasks.length}
                 </p>
 
                 <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-100">
-
                   <div
                     className="h-full rounded-full bg-indigo-600 transition-all duration-500"
                     style={{
                       width: `${taskProgress}%`,
                     }}
                   />
-
                 </div>
 
                 <p className="mt-2 text-xs text-slate-400">
                   %{taskProgress} tamamlandı
                 </p>
-
               </div>
-
 
               {/* TOPICS */}
 
               <div className="rounded-2xl bg-white p-5 shadow-sm">
-
                 <div className="flex items-center justify-between">
-
                   <p className="text-sm font-semibold text-slate-500">
                     Konu İlerlemesi
                   </p>
@@ -594,7 +556,6 @@ export default function DashboardPage() {
                   <span className="rounded-xl bg-green-50 px-3 py-2 text-lg">
                     📚
                   </span>
-
                 </div>
 
                 <p className="mt-4 text-3xl font-black text-slate-900">
@@ -605,16 +566,12 @@ export default function DashboardPage() {
                   {completedTopics} tamamlandı ·{" "}
                   {inProgressTopics} çalışılıyor
                 </p>
-
               </div>
-
 
               {/* NET */}
 
               <div className="rounded-2xl bg-white p-5 shadow-sm">
-
                 <div className="flex items-center justify-between">
-
                   <p className="text-sm font-semibold text-slate-500">
                     Son Net
                   </p>
@@ -622,7 +579,6 @@ export default function DashboardPage() {
                   <span className="rounded-xl bg-yellow-50 px-3 py-2 text-lg">
                     📈
                   </span>
-
                 </div>
 
                 <p className="mt-4 text-3xl font-black text-slate-900">
@@ -630,7 +586,6 @@ export default function DashboardPage() {
                 </p>
 
                 {previousNet !== null ? (
-
                   <p
                     className={`mt-2 text-xs font-bold ${
                       netChange >= 0
@@ -638,30 +593,20 @@ export default function DashboardPage() {
                         : "text-red-500"
                     }`}
                   >
-                    {netChange >= 0
-                      ? "+"
-                      : ""}
-                    {netChange.toFixed(2)}{" "}
-                    son denemeye göre
+                    {netChange >= 0 ? "+" : ""}
+                    {netChange.toFixed(2)} son denemeye göre
                   </p>
-
                 ) : (
-
                   <p className="mt-2 text-xs text-slate-400">
                     Henüz karşılaştırma yok
                   </p>
-
                 )}
-
               </div>
-
 
               {/* QUESTIONS */}
 
               <div className="rounded-2xl bg-white p-5 shadow-sm">
-
                 <div className="flex items-center justify-between">
-
                   <p className="text-sm font-semibold text-slate-500">
                     Soru İlerlemesi
                   </p>
@@ -669,7 +614,6 @@ export default function DashboardPage() {
                   <span className="rounded-xl bg-purple-50 px-3 py-2 text-lg">
                     📝
                   </span>
-
                 </div>
 
                 <p className="mt-4 text-3xl font-black text-slate-900">
@@ -677,20 +621,11 @@ export default function DashboardPage() {
                 </p>
 
                 <p className="mt-2 text-xs text-slate-400">
-                  {solvedResourceQuestions.toLocaleString(
-                    "tr-TR"
-                  )}{" "}
-                  /{" "}
-                  {totalResourceQuestions.toLocaleString(
-                    "tr-TR"
-                  )}{" "}
-                  soru
+                  {solvedResourceQuestions.toLocaleString("tr-TR")} /{" "}
+                  {totalResourceQuestions.toLocaleString("tr-TR")} soru
                 </p>
-
               </div>
-
             </section>
-
 
             {/* =====================================================
                 TASKS + GOALS
@@ -701,11 +636,8 @@ export default function DashboardPage() {
               {/* TASKS */}
 
               <div className="rounded-2xl bg-white p-5 shadow-sm sm:p-6 lg:col-span-2">
-
                 <div className="flex items-center justify-between">
-
                   <div>
-
                     <h2 className="text-xl font-black text-slate-900">
                       Bugünkü Görevler
                     </h2>
@@ -713,29 +645,21 @@ export default function DashboardPage() {
                     <p className="mt-1 text-sm text-slate-500">
                       Bugün yapman gerekenler
                     </p>
-
                   </div>
 
                   <button
                     onClick={() =>
-                      window.location.replace(
-                        "/tasks"
-                      )
+                      window.location.replace("/tasks")
                     }
                     className="rounded-xl bg-slate-100 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-200"
                   >
                     Tümü
                   </button>
-
                 </div>
 
                 {tasks.length === 0 ? (
-
                   <div className="mt-6 rounded-2xl border border-dashed border-slate-200 p-8 text-center">
-
-                    <div className="text-4xl">
-                      🎯
-                    </div>
+                    <div className="text-4xl">🎯</div>
 
                     <h3 className="mt-3 font-bold text-slate-900">
                       Bugün için görev yok
@@ -748,119 +672,86 @@ export default function DashboardPage() {
 
                     <button
                       onClick={() =>
-                        window.location.replace(
-                          "/tasks"
-                        )
+                        window.location.replace("/tasks")
                       }
                       className="mt-4 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-indigo-700"
                     >
                       Görev Oluştur
                     </button>
-
                   </div>
-
                 ) : (
-
                   <div className="mt-5 space-y-3">
+                    {tasks.slice(0, 5).map((task) => {
+                      const completed =
+                        task.status === "completed";
 
-                    {tasks
-                      .slice(0, 5)
-                      .map((task) => {
-
-                        const completed =
-                          task.status ===
-                          "completed";
-
-                        return (
-                          <div
-                            key={task.id}
-                            className="flex items-center gap-3 rounded-xl border border-slate-100 p-4"
+                      return (
+                        <div
+                          key={task.id}
+                          className="flex items-center gap-3 rounded-xl border border-slate-100 p-4"
+                        >
+                          <button
+                            onClick={() =>
+                              toggleTask(task)
+                            }
+                            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl font-black ${
+                              completed
+                                ? "bg-green-100 text-green-600"
+                                : "bg-indigo-50 text-indigo-600"
+                            }`}
                           >
+                            {completed ? "✓" : "○"}
+                          </button>
 
-                            <button
-                              onClick={() =>
-                                toggleTask(task)
-                              }
-                              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl font-black ${
+                          <div className="min-w-0 flex-1">
+                            <p
+                              className={`font-bold ${
                                 completed
-                                  ? "bg-green-100 text-green-600"
-                                  : "bg-indigo-50 text-indigo-600"
+                                  ? "text-slate-400 line-through"
+                                  : "text-slate-900"
                               }`}
                             >
-                              {completed
-                                ? "✓"
-                                : "○"}
-                            </button>
+                              {task.title}
+                            </p>
 
-                            <div className="min-w-0 flex-1">
+                            <div className="mt-1 flex flex-wrap gap-3 text-xs text-slate-400">
+                              {task.duration_minutes !== null && (
+                                <span>
+                                  ⏱ {task.duration_minutes} dk
+                                </span>
+                              )}
 
-                              <p
-                                className={`font-bold ${
-                                  completed
-                                    ? "text-slate-400 line-through"
-                                    : "text-slate-900"
-                                }`}
-                              >
-                                {task.title}
-                              </p>
-
-                              <div className="mt-1 flex flex-wrap gap-3 text-xs text-slate-400">
-
-                                {task.duration_minutes !== null && (
-                                  <span>
-                                    ⏱{" "}
-                                    {
-                                      task.duration_minutes
-                                    }{" "}
-                                    dk
-                                  </span>
-                                )}
-
-                                {task.question_count !== null && (
-                                  <span>
-                                    📝{" "}
-                                    {
-                                      task.question_count
-                                    }{" "}
-                                    soru
-                                  </span>
-                                )}
-
-                              </div>
-
+                              {task.question_count !== null && (
+                                <span>
+                                  📝 {task.question_count} soru
+                                </span>
+                              )}
                             </div>
-
-                            <span
-                              className={`hidden rounded-full px-3 py-1 text-xs font-bold sm:block ${
-                                completed
-                                  ? "bg-green-100 text-green-600"
-                                  : "bg-amber-100 text-amber-600"
-                              }`}
-                            >
-                              {completed
-                                ? "Tamamlandı"
-                                : "Bekliyor"}
-                            </span>
-
                           </div>
-                        );
-                      })}
 
+                          <span
+                            className={`hidden rounded-full px-3 py-1 text-xs font-bold sm:block ${
+                              completed
+                                ? "bg-green-100 text-green-600"
+                                : "bg-amber-100 text-amber-600"
+                            }`}
+                          >
+                            {completed
+                              ? "Tamamlandı"
+                              : "Bekliyor"}
+                          </span>
+                        </div>
+                      );
+                    })}
                   </div>
-
                 )}
-
               </div>
-
 
               {/* GOALS */}
 
               <div className="rounded-2xl bg-white p-5 shadow-sm sm:p-6">
-
                 <div className="flex items-center justify-between">
-
                   <div>
-
                     <h2 className="text-xl font-black text-slate-900">
                       Hedeflerim
                     </h2>
@@ -868,29 +759,21 @@ export default function DashboardPage() {
                     <p className="mt-1 text-sm text-slate-500">
                       Ulaşmak istediğin hedefler
                     </p>
-
                   </div>
 
                   <button
                     onClick={() =>
-                      window.location.replace(
-                        "/goals"
-                      )
+                      window.location.replace("/goals")
                     }
                     className="rounded-xl bg-slate-100 px-3 py-2 text-sm font-bold text-slate-700 hover:bg-slate-200"
                   >
                     +
                   </button>
-
                 </div>
 
                 {goals.length === 0 ? (
-
                   <div className="mt-6 rounded-xl border border-dashed border-slate-200 p-6 text-center">
-
-                    <div className="text-3xl">
-                      🎯
-                    </div>
+                    <div className="text-3xl">🎯</div>
 
                     <p className="mt-3 text-sm font-bold text-slate-900">
                       Henüz hedef yok
@@ -898,30 +781,21 @@ export default function DashboardPage() {
 
                     <button
                       onClick={() =>
-                        window.location.replace(
-                          "/goals"
-                        )
+                        window.location.replace("/goals")
                       }
                       className="mt-4 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-bold text-white"
                     >
                       Hedef Ekle
                     </button>
-
                   </div>
-
                 ) : (
-
                   <div className="mt-5 space-y-3">
-
                     {goals.map((goal) => (
-
                       <div
                         key={goal.id}
                         className="rounded-xl border border-slate-100 p-4"
                       >
-
                         <div className="flex items-start justify-between gap-3">
-
                           <h3 className="font-bold text-slate-900">
                             {goal.title}
                           </h3>
@@ -929,13 +803,10 @@ export default function DashboardPage() {
                           <span className="shrink-0 rounded-full bg-indigo-50 px-2.5 py-1 text-[10px] font-bold text-indigo-600">
                             {goal.exam_type}
                           </span>
-
                         </div>
 
                         <div className="mt-3 grid grid-cols-2 gap-2">
-
                           <div className="rounded-lg bg-slate-50 p-3">
-
                             <p className="text-[10px] text-slate-400">
                               Sıralama
                             </p>
@@ -947,11 +818,9 @@ export default function DashboardPage() {
                                   )
                                 : "-"}
                             </p>
-
                           </div>
 
                           <div className="rounded-lg bg-slate-50 p-3">
-
                             <p className="text-[10px] text-slate-400">
                               Net
                             </p>
@@ -961,23 +830,14 @@ export default function DashboardPage() {
                                 ? goal.target_net
                                 : "-"}
                             </p>
-
                           </div>
-
                         </div>
-
                       </div>
-
                     ))}
-
                   </div>
-
                 )}
-
               </div>
-
             </section>
-
 
             {/* =====================================================
                 EXAMS + RESOURCES
@@ -988,11 +848,8 @@ export default function DashboardPage() {
               {/* EXAMS */}
 
               <div className="rounded-2xl bg-white p-5 shadow-sm sm:p-6">
-
                 <div className="flex items-center justify-between">
-
                   <div>
-
                     <h2 className="text-xl font-black text-slate-900">
                       Son Denemeler
                     </h2>
@@ -1000,29 +857,21 @@ export default function DashboardPage() {
                     <p className="mt-1 text-sm text-slate-500">
                       Net gelişimini takip et
                     </p>
-
                   </div>
 
                   <button
                     onClick={() =>
-                      window.location.replace(
-                        "/exams"
-                      )
+                      window.location.replace("/exams")
                     }
                     className="rounded-xl bg-slate-100 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-200"
                   >
                     Tümü
                   </button>
-
                 </div>
 
                 {exams.length === 0 ? (
-
                   <div className="mt-6 rounded-xl border border-dashed border-slate-200 p-8 text-center">
-
-                    <div className="text-3xl">
-                      📈
-                    </div>
+                    <div className="text-3xl">📈</div>
 
                     <p className="mt-3 text-sm font-bold text-slate-900">
                       Henüz deneme eklenmemiş
@@ -1030,30 +879,21 @@ export default function DashboardPage() {
 
                     <button
                       onClick={() =>
-                        window.location.replace(
-                          "/exams"
-                        )
+                        window.location.replace("/exams")
                       }
                       className="mt-4 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-bold text-white"
                     >
                       Deneme Ekle
                     </button>
-
                   </div>
-
                 ) : (
-
                   <div className="mt-5 space-y-3">
-
                     {exams.map((exam) => (
-
                       <div
                         key={exam.id}
                         className="flex items-center justify-between rounded-xl border border-slate-100 p-4"
                       >
-
                         <div>
-
                           <p className="font-bold text-slate-900">
                             {exam.exam_name}
                           </p>
@@ -1061,34 +901,22 @@ export default function DashboardPage() {
                           <p className="mt-1 text-xs text-slate-400">
                             {exam.exam_date}
                           </p>
-
                         </div>
 
                         <p className="text-xl font-black text-indigo-600">
-                          {Number(
-                            exam.total_net
-                          ).toFixed(2)}
+                          {Number(exam.total_net).toFixed(2)}
                         </p>
-
                       </div>
-
                     ))}
-
                   </div>
-
                 )}
-
               </div>
-
 
               {/* RESOURCES */}
 
               <div className="rounded-2xl bg-white p-5 shadow-sm sm:p-6">
-
                 <div className="flex items-center justify-between">
-
                   <div>
-
                     <h2 className="text-xl font-black text-slate-900">
                       Kaynaklar
                     </h2>
@@ -1096,29 +924,21 @@ export default function DashboardPage() {
                     <p className="mt-1 text-sm text-slate-500">
                       Çözdüğün soruları takip et
                     </p>
-
                   </div>
 
                   <button
                     onClick={() =>
-                      window.location.replace(
-                        "/resources"
-                      )
+                      window.location.replace("/resources")
                     }
                     className="rounded-xl bg-slate-100 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-200"
                   >
                     Tümü
                   </button>
-
                 </div>
 
                 {resources.length === 0 ? (
-
                   <div className="mt-6 rounded-xl border border-dashed border-slate-200 p-8 text-center">
-
-                    <div className="text-3xl">
-                      📚
-                    </div>
+                    <div className="text-3xl">📚</div>
 
                     <p className="mt-3 text-sm font-bold text-slate-900">
                       Henüz kaynak eklenmemiş
@@ -1126,128 +946,85 @@ export default function DashboardPage() {
 
                     <button
                       onClick={() =>
-                        window.location.replace(
-                          "/resources"
-                        )
+                        window.location.replace("/resources")
                       }
                       className="mt-4 rounded-xl bg-indigo-600 px-4 py-2 text-xs font-bold text-white"
                     >
                       Kaynak Ekle
                     </button>
-
                   </div>
-
                 ) : (
-
                   <div className="mt-5 space-y-3">
+                    {resources.map((resource) => {
+                      const total = Number(
+                        resource.total_questions || 0
+                      );
 
-                    {resources.map(
-                      (resource) => {
+                      const solved = Number(
+                        resource.solved_questions || 0
+                      );
 
-                        const total =
-                          Number(
-                            resource.total_questions ||
-                              0
-                          );
-
-                        const solved =
-                          Number(
-                            resource.solved_questions ||
-                              0
-                          );
-
-                        const percentage =
-                          total > 0
-                            ? Math.min(
-                                100,
-                                Math.round(
-                                  (solved /
-                                    total) *
-                                    100
-                                )
+                      const percentage =
+                        total > 0
+                          ? Math.min(
+                              100,
+                              Math.round(
+                                (solved / total) * 100
                               )
-                            : 0;
+                            )
+                          : 0;
 
-                        return (
-                          <div
-                            key={
-                              resource.id
-                            }
-                            className="rounded-xl border border-slate-100 p-4"
-                          >
+                      return (
+                        <div
+                          key={resource.id}
+                          className="rounded-xl border border-slate-100 p-4"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="truncate font-bold text-slate-900">
+                                {resource.name}
+                              </p>
 
-                            <div className="flex items-start justify-between gap-3">
-
-                              <div className="min-w-0">
-
-                                <p className="truncate font-bold text-slate-900">
-                                  {
-                                    resource.name
-                                  }
+                              {resource.publisher && (
+                                <p className="mt-1 text-xs text-slate-400">
+                                  {resource.publisher}
                                 </p>
-
-                                {resource.publisher && (
-                                  <p className="mt-1 text-xs text-slate-400">
-                                    {
-                                      resource.publisher
-                                    }
-                                  </p>
-                                )}
-
-                              </div>
-
-                              <span className="shrink-0 text-sm font-black text-indigo-600">
-                                %{percentage}
-                              </span>
-
+                              )}
                             </div>
 
-                            <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
-
-                              <div
-                                className="h-full rounded-full bg-indigo-600 transition-all"
-                                style={{
-                                  width: `${percentage}%`,
-                                }}
-                              />
-
-                            </div>
-
-                            <p className="mt-2 text-xs text-slate-400">
-                              {solved.toLocaleString(
-                                "tr-TR"
-                              )}{" "}
-                              /{" "}
-                              {total.toLocaleString(
-                                "tr-TR"
-                              )}{" "}
-                              soru
-                            </p>
-
+                            <span className="shrink-0 text-sm font-black text-indigo-600">
+                              %{percentage}
+                            </span>
                           </div>
-                        );
-                      }
-                    )}
 
+                          <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
+                            <div
+                              className="h-full rounded-full bg-indigo-600 transition-all"
+                              style={{
+                                width: `${percentage}%`,
+                              }}
+                            />
+                          </div>
+
+                          <p className="mt-2 text-xs text-slate-400">
+                            {solved.toLocaleString("tr-TR")} /{" "}
+                            {total.toLocaleString("tr-TR")} soru
+                          </p>
+                        </div>
+                      );
+                    })}
                   </div>
-
                 )}
-
               </div>
-
             </section>
-
 
             {/* =====================================================
                 TARGET
             ===================================================== */}
 
             <section className="mt-6 rounded-2xl bg-white p-5 shadow-sm sm:p-6">
-
               <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-
                 <div>
-
                   <p className="text-sm font-bold text-indigo-600">
                     ANA HEDEF
                   </p>
@@ -1261,11 +1038,9 @@ export default function DashboardPage() {
                     {profile?.target_university ||
                       "Hedef üniversiteni belirle"}
                   </p>
-
                 </div>
 
                 <div className="rounded-2xl bg-indigo-50 px-6 py-4 text-center">
-
                   <p className="text-xs font-semibold text-indigo-500">
                     Hedef Sıralama
                   </p>
@@ -1277,13 +1052,9 @@ export default function DashboardPage() {
                         )
                       : "-"}
                   </p>
-
                 </div>
-
               </div>
-
             </section>
-
 
             {/* =====================================================
                 POMODORO + VILLAGE
@@ -1295,17 +1066,12 @@ export default function DashboardPage() {
 
               <button
                 onClick={() =>
-                  window.location.replace(
-                    "/pomodoro"
-                  )
+                  window.location.replace("/pomodoro")
                 }
                 className="group rounded-3xl bg-gradient-to-br from-orange-500 to-red-500 p-6 text-left text-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
               >
-
                 <div className="flex items-start justify-between gap-4">
-
                   <div>
-
                     <span className="inline-flex rounded-2xl bg-white/20 px-3 py-2 text-2xl">
                       🍅
                     </span>
@@ -1319,53 +1085,40 @@ export default function DashboardPage() {
                       Pomodoro tamamla ve XP
                       kazan.
                     </p>
-
                   </div>
 
                   <span className="rounded-xl bg-white/15 px-3 py-2 text-sm font-black transition group-hover:bg-white/25">
                     →
                   </span>
-
                 </div>
 
                 <div className="mt-6 flex items-center justify-between rounded-2xl bg-white/10 p-4">
-
                   <div>
-
                     <p className="text-xs font-semibold text-orange-100">
                       ODAKLANMAYA HAZIR MISIN?
                     </p>
 
                     <p className="mt-1 text-sm font-black">
-                      Pomodoro'yu başlat
+                      Pomodoro&apos;yu başlat
                     </p>
-
                   </div>
 
                   <span className="rounded-xl bg-white px-4 py-2 text-xs font-black text-orange-600">
                     BAŞLA
                   </span>
-
                 </div>
-
               </button>
-
 
               {/* VILLAGE */}
 
               <button
                 onClick={() =>
-                  window.location.replace(
-                    "/village"
-                  )
+                  window.location.replace("/village")
                 }
                 className="group rounded-3xl bg-gradient-to-br from-emerald-600 to-teal-600 p-6 text-left text-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg"
               >
-
                 <div className="flex items-start justify-between gap-4">
-
                   <div>
-
                     <span className="inline-flex rounded-2xl bg-white/20 px-3 py-2 text-2xl">
                       🏰
                     </span>
@@ -1379,19 +1132,15 @@ export default function DashboardPage() {
                       yerleşimini geliştir ve
                       zamanla büyüt.
                     </p>
-
                   </div>
 
                   <span className="rounded-xl bg-white/15 px-3 py-2 text-sm font-black transition group-hover:bg-white/25">
                     →
                   </span>
-
                 </div>
 
                 <div className="mt-6 flex items-center justify-between rounded-2xl bg-white/10 p-4">
-
                   <div>
-
                     <p className="text-xs font-semibold text-emerald-100">
                       YERLEŞİMİNİ GELİŞTİR
                     </p>
@@ -1399,19 +1148,14 @@ export default function DashboardPage() {
                     <p className="mt-1 text-sm font-black">
                       Köyüne git
                     </p>
-
                   </div>
 
                   <span className="rounded-xl bg-white px-4 py-2 text-xs font-black text-emerald-600">
                     KÖYÜM →
                   </span>
-
                 </div>
-
               </button>
-
             </section>
-
 
             {/* =====================================================
                 NAVIGATION
@@ -1423,16 +1167,11 @@ export default function DashboardPage() {
 
               <button
                 onClick={() =>
-                  window.location.replace(
-                    "/topics"
-                  )
+                  window.location.replace("/topics")
                 }
                 className="rounded-2xl bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
               >
-
-                <span className="text-2xl">
-                  📚
-                </span>
+                <span className="text-2xl">📚</span>
 
                 <h3 className="mt-3 font-black">
                   Konular
@@ -1441,24 +1180,17 @@ export default function DashboardPage() {
                 <p className="mt-1 text-xs text-slate-500">
                   Konu ilerlemeni takip et
                 </p>
-
               </button>
-
 
               {/* STATISTICS */}
 
               <button
                 onClick={() =>
-                  window.location.replace(
-                    "/statistics"
-                  )
+                  window.location.replace("/statistics")
                 }
                 className="rounded-2xl bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
               >
-
-                <span className="text-2xl">
-                  📊
-                </span>
+                <span className="text-2xl">📊</span>
 
                 <h3 className="mt-3 font-black">
                   İstatistikler
@@ -1467,24 +1199,17 @@ export default function DashboardPage() {
                 <p className="mt-1 text-xs text-slate-500">
                   Gelişimini analiz et
                 </p>
-
               </button>
-
 
               {/* PLANS */}
 
               <button
                 onClick={() =>
-                  window.location.replace(
-                    "/plans"
-                  )
+                  window.location.replace("/plans")
                 }
                 className="rounded-2xl bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
               >
-
-                <span className="text-2xl">
-                  🗓️
-                </span>
+                <span className="text-2xl">🗓️</span>
 
                 <h3 className="mt-3 font-black">
                   Planlar
@@ -1493,24 +1218,17 @@ export default function DashboardPage() {
                 <p className="mt-1 text-xs text-slate-500">
                   Çalışma planını yönet
                 </p>
-
               </button>
-
 
               {/* PROFILE */}
 
               <button
                 onClick={() =>
-                  window.location.replace(
-                    "/profile"
-                  )
+                  window.location.replace("/profile")
                 }
                 className="rounded-2xl bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
               >
-
-                <span className="text-2xl">
-                  ⚙️
-                </span>
+                <span className="text-2xl">⚙️</span>
 
                 <h3 className="mt-3 font-black">
                   Profil
@@ -1519,24 +1237,17 @@ export default function DashboardPage() {
                 <p className="mt-1 text-xs text-slate-500">
                   Hesap ve hedef bilgileri
                 </p>
-
               </button>
-
             </section>
-
 
             {/* =====================================================
                 FOOTER SPACE
             ===================================================== */}
 
             <div className="h-8" />
-
           </div>
-
         </div>
-
       </div>
-
     </main>
   );
 }

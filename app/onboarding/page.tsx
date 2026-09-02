@@ -15,20 +15,19 @@ type Profile = {
 
 export default function OnboardingPage() {
   const [fullName, setFullName] = useState("");
-  const [examYear, setExamYear] = useState("2027");
+  const [examYear, setExamYear] = useState("");
   const [field, setField] = useState("");
-  const [targetUniversity, setTargetUniversity] = useState("");
-  const [targetDepartment, setTargetDepartment] = useState("");
+  const [targetUniversity, setTargetUniversity] =
+    useState("");
+  const [targetDepartment, setTargetDepartment] =
+    useState("");
   const [targetRank, setTargetRank] = useState("");
 
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(true);
 
-  const [errorMessage, setErrorMessage] = useState("");
-
-  useEffect(() => {
-    loadUserData();
-  }, []);
+  const [errorMessage, setErrorMessage] =
+    useState("");
 
   async function loadUserData() {
     setChecking(true);
@@ -36,75 +35,61 @@ export default function OnboardingPage() {
 
     const {
       data: { user },
+      error: userError,
     } = await supabase.auth.getUser();
 
-    if (!user) {
+    if (userError || !user) {
       window.location.replace("/auth");
       return;
     }
 
-    const metadataName =
-      typeof user.user_metadata?.full_name === "string"
-        ? user.user_metadata.full_name
-        : "";
+    /*
+     * ---------------------------------------------------------
+     * ONBOARDING YENİ KULLANICI İÇİN BOŞ BAŞLAR
+     * ---------------------------------------------------------
+     *
+     * Auth sırasında girilen isim, burada otomatik
+     * olarak forma aktarılmaz.
+     *
+     * Böylece kullanıcı onboarding ekranını açtığında:
+     *
+     * Ad Soyad          -> boş
+     * Sınav yılı        -> boş
+     * Alan              -> boş
+     * Üniversite        -> boş
+     * Bölüm             -> boş
+     * Hedef sıralama    -> boş
+     *
+     * olur.
+     */
 
-    if (metadataName) {
-      setFullName(metadataName);
-    }
+    setFullName("");
+    setExamYear("");
+    setField("");
+    setTargetUniversity("");
+    setTargetDepartment("");
+    setTargetRank("");
 
-    const { data: profile, error } = await supabase
-      .from("profiles")
-      .select(
-        "id, full_name, exam_year, field, target_university, target_department, target_rank"
-      )
-      .eq("id", user.id)
-      .maybeSingle();
-
-    if (error) {
-      console.error(
-        "Profil kontrolü hatası:",
-        error.message,
-        error.details,
-        error.code
-      );
-    }
-
-    if (profile) {
-      const currentProfile = profile as Profile;
-
-      setFullName(
-        currentProfile.full_name ||
-          metadataName ||
-          ""
-      );
-
-      setExamYear(
-        currentProfile.exam_year
-          ? String(currentProfile.exam_year)
-          : "2027"
-      );
-
-      setField(
-        currentProfile.field || ""
-      );
-
-      setTargetUniversity(
-        currentProfile.target_university || ""
-      );
-
-      setTargetDepartment(
-        currentProfile.target_department || ""
-      );
-
-      setTargetRank(
-        currentProfile.target_rank
-          ? String(currentProfile.target_rank)
-          : ""
-      );
-    }
+    /*
+     * Burada profiles tablosundan veri çekmiyoruz.
+     *
+     * Bunun nedeni eski/test kullanıcı verilerinin veya
+     * daha önce oluşturulmuş varsayılan profil bilgilerinin
+     * yeni onboarding ekranına taşınmasını engellemektir.
+     */
 
     setChecking(false);
   }
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void loadUserData();
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, []);
 
   async function handleSubmit() {
     setErrorMessage("");
@@ -112,6 +97,13 @@ export default function OnboardingPage() {
     if (!fullName.trim()) {
       setErrorMessage(
         "Lütfen adını ve soyadını gir."
+      );
+      return;
+    }
+
+    if (!examYear) {
+      setErrorMessage(
+        "Lütfen sınav yılını seç."
       );
       return;
     }
@@ -139,7 +131,10 @@ export default function OnboardingPage() {
 
     const rank = Number(targetRank);
 
-    if (!Number.isFinite(rank) || rank <= 0) {
+    if (
+      !Number.isFinite(rank) ||
+      rank <= 0
+    ) {
       setErrorMessage(
         "Lütfen geçerli bir hedef sıralama gir."
       );
@@ -179,13 +174,11 @@ export default function OnboardingPage() {
       console.error(
         "Profil oluşturma hatası:",
         error.message,
-        error.details,
         error.code
       );
 
       setErrorMessage(
-        error.message ||
-          "Profil oluşturulamadı. Lütfen tekrar dene."
+        "Profil oluşturulamadı. Lütfen tekrar dene."
       );
 
       setLoading(false);
@@ -199,13 +192,11 @@ export default function OnboardingPage() {
     return (
       <main className="flex min-h-screen items-center justify-center bg-slate-50">
         <div className="text-center">
-
           <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-indigo-600" />
 
           <p className="mt-4 text-sm font-semibold text-slate-500">
             Hesabın hazırlanıyor...
           </p>
-
         </div>
       </main>
     );
@@ -213,15 +204,9 @@ export default function OnboardingPage() {
 
   return (
     <main className="min-h-screen bg-slate-50">
-
       <div className="mx-auto flex min-h-screen max-w-6xl items-center px-4 py-8 sm:px-6 lg:px-8">
-
         <div className="w-full">
-
-          {/* TOP */}
-
           <div className="mx-auto mb-8 max-w-3xl text-center">
-
             <button
               onClick={() =>
                 window.location.replace("/")
@@ -238,15 +223,10 @@ export default function OnboardingPage() {
               Seni tanıyalım ve YKS hazırlık
               sürecini sana göre kişiselleştirelim.
             </p>
-
           </div>
 
-          {/* PROGRESS */}
-
           <div className="mx-auto mb-8 max-w-2xl">
-
             <div className="flex items-center justify-between">
-
               <div className="flex items-center gap-2">
                 <div className="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-600 text-xs font-black text-white">
                   1
@@ -257,12 +237,11 @@ export default function OnboardingPage() {
                 </span>
               </div>
 
-              <div className="h-1 flex-1 mx-3 rounded-full bg-slate-200">
+              <div className="mx-3 h-1 flex-1 rounded-full bg-slate-200">
                 <div className="h-full w-1/3 rounded-full bg-indigo-600" />
               </div>
 
               <div className="flex items-center gap-2">
-
                 <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-200 text-xs font-black text-slate-400">
                   2
                 </div>
@@ -270,13 +249,11 @@ export default function OnboardingPage() {
                 <span className="hidden text-xs font-bold text-slate-400 sm:block">
                   Hedefin
                 </span>
-
               </div>
 
-              <div className="h-1 flex-1 mx-3 rounded-full bg-slate-200" />
+              <div className="mx-3 h-1 flex-1 rounded-full bg-slate-200" />
 
               <div className="flex items-center gap-2">
-
                 <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-200 text-xs font-black text-slate-400">
                   3
                 </div>
@@ -284,23 +261,13 @@ export default function OnboardingPage() {
                 <span className="hidden text-xs font-bold text-slate-400 sm:block">
                   Hazırsın
                 </span>
-
               </div>
-
             </div>
-
           </div>
 
-          {/* MAIN CARD */}
-
           <div className="mx-auto grid max-w-5xl overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl shadow-slate-200/50 lg:grid-cols-[0.8fr_1.2fr]">
-
-            {/* LEFT INFO */}
-
             <div className="hidden bg-slate-900 p-8 text-white lg:flex lg:flex-col lg:justify-between">
-
               <div>
-
                 <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-500/20 text-2xl">
                   🎯
                 </div>
@@ -317,13 +284,10 @@ export default function OnboardingPage() {
                   Sınav Köyü'nü sana daha uygun
                   hale getirebiliriz.
                 </p>
-
               </div>
 
               <div className="space-y-4">
-
                 <div className="flex items-center gap-3">
-
                   <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/10 text-sm">
                     ✓
                   </div>
@@ -331,11 +295,9 @@ export default function OnboardingPage() {
                   <span className="text-sm font-semibold text-slate-300">
                     Kişisel hedeflerin
                   </span>
-
                 </div>
 
                 <div className="flex items-center gap-3">
-
                   <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/10 text-sm">
                     ✓
                   </div>
@@ -343,11 +305,9 @@ export default function OnboardingPage() {
                   <span className="text-sm font-semibold text-slate-300">
                     Çalışma planların
                   </span>
-
                 </div>
 
                 <div className="flex items-center gap-3">
-
                   <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/10 text-sm">
                     ✓
                   </div>
@@ -355,19 +315,12 @@ export default function OnboardingPage() {
                   <span className="text-sm font-semibold text-slate-300">
                     İlerleme takibin
                   </span>
-
                 </div>
-
               </div>
-
             </div>
 
-            {/* FORM */}
-
             <div className="p-6 sm:p-8 lg:p-10">
-
               <div className="mb-8">
-
                 <p className="text-xs font-black uppercase tracking-wider text-indigo-600">
                   Başlangıç
                 </p>
@@ -381,10 +334,7 @@ export default function OnboardingPage() {
                   çalışma sürecini kişiselleştirmemize
                   yardımcı olacak.
                 </p>
-
               </div>
-
-              {/* ERROR */}
 
               {errorMessage && (
                 <div className="mb-6 rounded-xl border border-red-100 bg-red-50 p-4 text-sm font-semibold leading-5 text-red-600">
@@ -393,11 +343,7 @@ export default function OnboardingPage() {
               )}
 
               <div className="space-y-5">
-
-                {/* NAME */}
-
                 <div>
-
                   <label className="mb-2 block text-sm font-bold text-slate-700">
                     Ad Soyad
                   </label>
@@ -414,13 +360,9 @@ export default function OnboardingPage() {
                     maxLength={100}
                     className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3.5 text-sm outline-none transition placeholder:text-slate-400 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50"
                   />
-
                 </div>
 
-                {/* EXAM YEAR */}
-
                 <div>
-
                   <label className="mb-2 block text-sm font-bold text-slate-700">
                     Sınav yılı
                   </label>
@@ -434,6 +376,10 @@ export default function OnboardingPage() {
                     }
                     className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50"
                   >
+                    <option value="">
+                      Sınav yılını seç
+                    </option>
+
                     <option value="2027">
                       YKS 2027
                     </option>
@@ -446,13 +392,9 @@ export default function OnboardingPage() {
                       YKS 2029
                     </option>
                   </select>
-
                 </div>
 
-                {/* FIELD */}
-
                 <div>
-
                   <label className="mb-2 block text-sm font-bold text-slate-700">
                     Alanın
                   </label>
@@ -466,7 +408,6 @@ export default function OnboardingPage() {
                     }
                     className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3.5 text-sm outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50"
                   >
-
                     <option value="">
                       Alanını seç
                     </option>
@@ -486,15 +427,10 @@ export default function OnboardingPage() {
                     <option value="dil">
                       Dil
                     </option>
-
                   </select>
-
                 </div>
 
-                {/* UNIVERSITY */}
-
                 <div>
-
                   <label className="mb-2 block text-sm font-bold text-slate-700">
                     Hedef üniversite
                     <span className="ml-2 text-xs font-medium text-slate-400">
@@ -510,17 +446,13 @@ export default function OnboardingPage() {
                         e.target.value
                       )
                     }
-                    placeholder="Örn. Bartın Üniversitesi"
+                    placeholder="Örn. İstanbul Üniversitesi"
                     maxLength={200}
                     className="w-full rounded-xl border border-slate-200 px-4 py-3.5 text-sm outline-none transition placeholder:text-slate-400 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50"
                   />
-
                 </div>
 
-                {/* DEPARTMENT */}
-
                 <div>
-
                   <label className="mb-2 block text-sm font-bold text-slate-700">
                     Hedef bölüm
                   </label>
@@ -533,17 +465,13 @@ export default function OnboardingPage() {
                         e.target.value
                       )
                     }
-                    placeholder="Örn. Bilgisayar Mühendisliği"
+                    placeholder="Örn. Yazılım Mühendisliği"
                     maxLength={200}
                     className="w-full rounded-xl border border-slate-200 px-4 py-3.5 text-sm outline-none transition placeholder:text-slate-400 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50"
                   />
-
                 </div>
 
-                {/* RANK */}
-
                 <div>
-
                   <label className="mb-2 block text-sm font-bold text-slate-700">
                     Hedef sıralama
                   </label>
@@ -565,10 +493,7 @@ export default function OnboardingPage() {
                     Hedeflediğin başarı sıralamasını
                     gir.
                   </p>
-
                 </div>
-
-                {/* SUBMIT */}
 
                 <button
                   onClick={handleSubmit}
@@ -579,22 +504,16 @@ export default function OnboardingPage() {
                     ? "Profil oluşturuluyor..."
                     : "Hedeflerimi Kaydet →"}
                 </button>
-
               </div>
 
               <p className="mt-5 text-center text-xs leading-5 text-slate-400">
                 Bu bilgileri daha sonra Profil
                 sayfasından değiştirebilirsin.
               </p>
-
             </div>
-
           </div>
-
         </div>
-
       </div>
-
     </main>
   );
 }

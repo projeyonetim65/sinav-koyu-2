@@ -127,7 +127,7 @@ export default function CookiesPage() {
               </h2>
 
               <p className="mt-3">
-                Sınav Köyü'nün mevcut temel kullanımında reklam veya
+                Sınav Köyü&apos;nün mevcut temel kullanımında reklam veya
                 pazarlama amacıyla çerez kullanılması zorunlu değildir.
               </p>
 
@@ -161,8 +161,8 @@ export default function CookiesPage() {
               </h2>
 
               <p className="mt-3">
-                Sınav Köyü'nde zorunlu olmayan çerezlerin kullanılması halinde
-                kullanıcıya uygun bir tercih ekranı sunulacaktır.
+                Sınav Köyü&apos;nde zorunlu olmayan çerezlerin kullanılması
+                halinde kullanıcıya uygun bir tercih ekranı sunulacaktır.
               </p>
 
               <p className="mt-3">
@@ -215,7 +215,7 @@ export default function CookiesPage() {
       </div>
 
       <footer className="border-t border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-5xl flex-col gap-4 px-4 py-8 sm:px-6 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mx-auto flex max-w-5xl flex-col gap-4 px-4 py-8 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-xs text-slate-400">
             © 2026 Sınav Köyü
           </p>
