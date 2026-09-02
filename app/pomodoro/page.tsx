@@ -164,9 +164,6 @@ export default function PomodoroPage() {
 
     /*
      * POMODORO KAYITLARI
-     *
-     * completed alanı kullanmıyoruz.
-     * completed_at mevcut kolon.
      */
 
     const {
@@ -360,7 +357,9 @@ export default function PomodoroPage() {
     }
 
     /*
-     * GAMIFICATION KAYDI
+     * --------------------------------------------------
+     * GAMIFICATION XP
+     * --------------------------------------------------
      */
 
     let currentXP =
@@ -396,11 +395,6 @@ export default function PomodoroPage() {
         gamificationError.code
       );
 
-      /*
-       * Pomodoro kaydı oluştu ama XP güncellenemediyse
-       * kullanıcıya sessiz şekilde bilgi veriyoruz.
-       */
-
       setMessage(
         "Pomodoro tamamlandı ancak XP güncellenirken bir sorun oluştu."
       );
@@ -408,10 +402,113 @@ export default function PomodoroPage() {
       setGamification(
         updatedGamification
       );
+    }
 
-      setMessage(
-        `Pomodoro tamamlandı! +${earnedXP} XP kazandın. 🚀`
+    /*
+     * --------------------------------------------------
+     * KÖY XP
+     *
+     * 1 Pomodoro = +10 Köy XP
+     * 100 XP = +1 Köy seviyesi
+     * --------------------------------------------------
+     */
+
+    const {
+      data: villageData,
+      error: villageLoadError,
+    } = await supabase
+      .from("village")
+      .select("*")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (villageLoadError) {
+      console.error(
+        "Köy verisi yükleme hatası:",
+        villageLoadError.message,
+        villageLoadError.details,
+        villageLoadError.hint,
+        villageLoadError.code
       );
+    } else {
+      /*
+       * Eğer Köy kaydı yoksa oluştur.
+       */
+
+      if (!villageData) {
+        const {
+          error: villageCreateError,
+        } = await supabase
+          .from("village")
+          .insert({
+            user_id: user.id,
+            level: 1,
+            experience: earnedXP,
+          });
+
+        if (villageCreateError) {
+          console.error(
+            "Köy oluşturma hatası:",
+            villageCreateError.message,
+            villageCreateError.details,
+            villageCreateError.hint,
+            villageCreateError.code
+          );
+        }
+      } else {
+        /*
+         * Mevcut Köy XP'sini artır.
+         */
+
+        const currentVillageXP =
+          Number(
+            villageData.experience || 0
+          );
+
+        const newVillageXP =
+          currentVillageXP +
+          earnedXP;
+
+        /*
+         * Her 100 XP = 1 seviye.
+         *
+         * 0-99   => Seviye 1
+         * 100-199 => Seviye 2
+         * 200-299 => Seviye 3
+         */
+
+        const newVillageLevel =
+          Math.floor(
+            newVillageXP / 100
+          ) + 1;
+
+        const {
+          error: villageUpdateError,
+        } = await supabase
+          .from("village")
+          .update({
+            experience:
+              newVillageXP,
+            level:
+              newVillageLevel,
+            updated_at:
+              new Date().toISOString(),
+          })
+          .eq(
+            "user_id",
+            user.id
+          );
+
+        if (villageUpdateError) {
+          console.error(
+            "Köy XP güncelleme hatası:",
+            villageUpdateError.message,
+            villageUpdateError.details,
+            villageUpdateError.hint,
+            villageUpdateError.code
+          );
+        }
+      }
     }
 
     /*
@@ -423,6 +520,16 @@ export default function PomodoroPage() {
         newSession,
         ...current,
       ]);
+    }
+
+    /*
+     * Başarılı mesaj.
+     */
+
+    if (!gamificationError) {
+      setMessage(
+        `Pomodoro tamamlandı! +${earnedXP} XP kazandın. 🏡🚀`
+      );
     }
 
     /*
@@ -813,11 +920,9 @@ export default function PomodoroPage() {
                 <p className="mt-3 text-sm leading-6 text-indigo-100">
                   Tamamladığın her
                   Pomodoro sana XP
-                  kazandırır. Bu sistem
-                  ileride Sınav Köyü'nün
-                  şehir ve gelişim
-                  sisteminin temelini
-                  oluşturacak.
+                  kazandırır. Kazandığın
+                  XP aynı zamanda Köyü'nün
+                  gelişmesini sağlar.
                 </p>
 
                 <div className="mt-8 rounded-2xl bg-white/10 p-5">
@@ -992,12 +1097,10 @@ export default function PomodoroPage() {
                     Pomodoro'yu tamamla,
                     sistem otomatik olarak
                     kaydetsin ve +10 XP
-                    kazandırssın. Biriken
-                    XP'ler ileride kendi
-                    gelişim alanını,
-                    evini, şehrini ve
-                    medeniyetini geliştirmek
-                    için kullanılabilecek.
+                    kazandırsın. Biriken
+                    XP'ler Köyü'nün
+                    seviyesini ve gelişimini
+                    artırır.
                   </p>
 
                 </div>
