@@ -8,7 +8,7 @@ import {
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
-type Mode = "login" | "signup" | "forgot";
+type Mode = "login" | "signup";
 
 export default function AuthPage() {
   const router = useRouter();
@@ -34,9 +34,6 @@ export default function AuthPage() {
   const [errorMessage, setErrorMessage] =
     useState("");
 
-  const [successMessage, setSuccessMessage] =
-    useState("");
-
   /*
    * ---------------------------------------------------------
    * OTURUM KONTROLÜ
@@ -56,8 +53,7 @@ export default function AuthPage() {
         const {
           data: { session },
           error,
-        } =
-          await supabase.auth.getSession();
+        } = await supabase.auth.getSession();
 
         if (error) {
           console.error(
@@ -66,23 +62,16 @@ export default function AuthPage() {
           );
         }
 
-        /*
-         * Kullanıcı zaten giriş yapmışsa
-         * direkt dashboard'a git.
-         */
+        if (cancelled) {
+          return;
+        }
 
         if (session?.user) {
           router.replace("/dashboard");
           return;
         }
 
-        /*
-         * Session yoksa giriş ekranını göster.
-         */
-
-        if (!cancelled) {
-          setLoading(false);
-        }
+        setLoading(false);
       } catch (error) {
         console.error(
           "Oturum kontrolünde beklenmeyen hata:",
@@ -99,38 +88,32 @@ export default function AuthPage() {
 
     /*
      * Supabase auth değişikliklerini dinle.
+     *
+     * INITIAL_SESSION burada özellikle yönlendirme
+     * için kullanılmıyor. İlk session kontrolü yukarıda
+     * getSession() ile yapılıyor.
      */
 
     const {
       data: {
         subscription,
       },
-    } =
-      supabase.auth.onAuthStateChange(
-        (event, session) => {
-          /*
-           * Kullanıcı giriş yaptıysa
-           * direkt dashboard'a gönder.
-           *
-           * ONBOARDING YOK.
-           */
-
-          if (
-            session?.user &&
-            (
-              event === "SIGNED_IN" ||
-              event === "INITIAL_SESSION" ||
-              event === "USER_UPDATED"
-            )
-          ) {
-            router.replace("/dashboard");
-          }
+    } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        if (
+          session?.user &&
+          (
+            event === "SIGNED_IN" ||
+            event === "USER_UPDATED"
+          )
+        ) {
+          router.replace("/dashboard");
         }
-      );
+      }
+    );
 
     return () => {
       cancelled = true;
-
       subscription.unsubscribe();
     };
   }, [router]);
@@ -145,11 +128,7 @@ export default function AuthPage() {
     nextMode: Mode
   ) {
     setMode(nextMode);
-
     setErrorMessage("");
-
-    setSuccessMessage("");
-
     setPassword("");
   }
 
@@ -170,8 +149,6 @@ export default function AuthPage() {
 
     setErrorMessage("");
 
-    setSuccessMessage("");
-
     const cleanEmail =
       email.trim().toLowerCase();
 
@@ -182,18 +159,6 @@ export default function AuthPage() {
     if (!cleanEmail) {
       setErrorMessage(
         "Lütfen e-posta adresini gir."
-      );
-
-      return;
-    }
-
-    /*
-     * Şifre unutma
-     */
-
-    if (mode === "forgot") {
-      await handleForgotPassword(
-        cleanEmail
       );
 
       return;
@@ -297,12 +262,10 @@ export default function AuthPage() {
       data,
       error,
     } =
-      await supabase.auth.signInWithPassword(
-        {
-          email: cleanEmail,
-          password: cleanPassword,
-        }
-      );
+      await supabase.auth.signInWithPassword({
+        email: cleanEmail,
+        password: cleanPassword,
+      });
 
     if (error) {
       setErrorMessage(
@@ -327,9 +290,7 @@ export default function AuthPage() {
     }
 
     /*
-     * -------------------------------------------------------
      * BAŞARILI GİRİŞ
-     * -------------------------------------------------------
      *
      * ONBOARDING YOK.
      *
@@ -362,14 +323,6 @@ export default function AuthPage() {
             full_name:
               fullName.trim(),
           },
-
-          /*
-           * E-posta doğrulaması sonrası
-           * kullanıcı tekrar auth sayfasına gelir.
-           */
-
-          emailRedirectTo:
-            `${window.location.origin}/auth`,
         },
       });
 
@@ -408,9 +361,7 @@ export default function AuthPage() {
     }
 
     /*
-     * -------------------------------------------------------
      * SESSION VARSA
-     * -------------------------------------------------------
      *
      * Email confirmation kapalıysa kullanıcı
      * direkt giriş yapmış olur.
@@ -428,72 +379,15 @@ export default function AuthPage() {
     }
 
     /*
-     * -------------------------------------------------------
-     * EMAIL CONFIRMATION AÇIKSA
-     * -------------------------------------------------------
+     * Confirm email kapalı olmasına rağmen
+     * session oluşmadıysa kullanıcıya genel hata göster.
      */
 
-    setSuccessMessage(
-      "Hesabın oluşturuldu. E-posta adresine gönderdiğimiz doğrulama bağlantısına tıkla. Doğrulama tamamlandığında giriş yapabilirsin."
+    setErrorMessage(
+      "Hesap oluşturuldu ancak oturum başlatılamadı. Lütfen giriş yapmayı dene."
     );
 
-    setMode("login");
-
-    setPassword("");
-
     setSubmitting(false);
-  }
-
-  /*
-   * ---------------------------------------------------------
-   * ŞİFRE SIFIRLAMA
-   * ---------------------------------------------------------
-   */
-
-  async function handleForgotPassword(
-    cleanEmail: string
-  ) {
-    setSubmitting(true);
-
-    try {
-      const {
-        error,
-      } =
-        await supabase.auth.resetPasswordForEmail(
-          cleanEmail,
-          {
-            redirectTo:
-              `${window.location.origin}/reset-password`,
-          }
-        );
-
-      if (error) {
-        setErrorMessage(
-          "Şifre sıfırlama bağlantısı gönderilemedi. Lütfen biraz sonra tekrar dene."
-        );
-
-        setSubmitting(false);
-
-        return;
-      }
-
-      setSuccessMessage(
-        "Şifre sıfırlama bağlantısı e-posta adresine gönderildi. Gelen kutunu ve spam klasörünü kontrol et."
-      );
-
-      setSubmitting(false);
-    } catch (error) {
-      console.error(
-        "Şifre sıfırlama hatası:",
-        error
-      );
-
-      setErrorMessage(
-        "Bir bağlantı hatası oluştu. Lütfen tekrar dene."
-      );
-
-      setSubmitting(false);
-    }
   }
 
   /*
@@ -521,7 +415,7 @@ export default function AuthPage() {
         "email not confirmed"
       )
     ) {
-      return "Önce e-posta adresini doğrulaman gerekiyor.";
+      return "E-posta doğrulaması gerekiyor. Supabase ayarlarını kontrol et.";
     }
 
     if (
@@ -758,18 +652,14 @@ export default function AuthPage() {
                 <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-50 text-2xl">
                   {mode === "login"
                     ? "👋"
-                    : mode === "signup"
-                    ? "🚀"
-                    : "🔑"}
+                    : "🚀"}
                 </div>
 
                 <h2 className="mt-5 text-2xl font-black text-slate-900">
 
                   {mode === "login"
                     ? "Tekrar hoş geldin!"
-                    : mode === "signup"
-                    ? "Sınav Köyü'ne katıl"
-                    : "Şifreni mi unuttun?"}
+                    : "Sınav Köyü'ne katıl"}
 
                 </h2>
 
@@ -777,51 +667,45 @@ export default function AuthPage() {
 
                   {mode === "login"
                     ? "Hesabına giriş yap ve çalışmaya devam et."
-                    : mode === "signup"
-                    ? "Hesabını oluştur ve YKS hazırlığını düzenlemeye başla."
-                    : "E-posta adresini gir. Sana şifre sıfırlama bağlantısı gönderelim."}
+                    : "Hesabını oluştur ve YKS hazırlığını düzenlemeye başla."}
 
                 </p>
 
               </div>
 
-              {mode !== "forgot" && (
+              <div className="mt-7 grid grid-cols-2 rounded-xl bg-slate-100 p-1">
 
-                <div className="mt-7 grid grid-cols-2 rounded-xl bg-slate-100 p-1">
+                <button
+                  type="button"
+                  onClick={() =>
+                    switchMode("login")
+                  }
+                  disabled={submitting}
+                  className={`rounded-lg py-2.5 text-sm font-black transition ${
+                    mode === "login"
+                      ? "bg-white text-indigo-600 shadow-sm"
+                      : "text-slate-500 hover:text-slate-700"
+                  } disabled:cursor-not-allowed disabled:opacity-60`}
+                >
+                  Giriş Yap
+                </button>
 
-                  <button
-                    type="button"
-                    onClick={() =>
-                      switchMode("login")
-                    }
-                    disabled={submitting}
-                    className={`rounded-lg py-2.5 text-sm font-black transition ${
-                      mode === "login"
-                        ? "bg-white text-indigo-600 shadow-sm"
-                        : "text-slate-500 hover:text-slate-700"
-                    } disabled:cursor-not-allowed disabled:opacity-60`}
-                  >
-                    Giriş Yap
-                  </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    switchMode("signup")
+                  }
+                  disabled={submitting}
+                  className={`rounded-lg py-2.5 text-sm font-black transition ${
+                    mode === "signup"
+                      ? "bg-white text-indigo-600 shadow-sm"
+                      : "text-slate-500 hover:text-slate-700"
+                  } disabled:cursor-not-allowed disabled:opacity-60`}
+                >
+                  Kayıt Ol
+                </button>
 
-                  <button
-                    type="button"
-                    onClick={() =>
-                      switchMode("signup")
-                    }
-                    disabled={submitting}
-                    className={`rounded-lg py-2.5 text-sm font-black transition ${
-                      mode === "signup"
-                        ? "bg-white text-indigo-600 shadow-sm"
-                        : "text-slate-500 hover:text-slate-700"
-                    } disabled:cursor-not-allowed disabled:opacity-60`}
-                  >
-                    Kayıt Ol
-                  </button>
-
-                </div>
-
-              )}
+              </div>
 
               {errorMessage && (
 
@@ -830,17 +714,6 @@ export default function AuthPage() {
                   className="mt-5 rounded-xl border border-red-100 bg-red-50 p-3.5 text-sm font-semibold leading-5 text-red-600"
                 >
                   {errorMessage}
-                </div>
-
-              )}
-
-              {successMessage && (
-
-                <div
-                  role="status"
-                  className="mt-5 rounded-xl border border-emerald-100 bg-emerald-50 p-3.5 text-sm font-semibold leading-5 text-emerald-600"
-                >
-                  {successMessage}
                 </div>
 
               )}
@@ -907,72 +780,49 @@ export default function AuthPage() {
 
                 </div>
 
-                {mode !== "forgot" && (
+                <div>
 
-                  <div>
+                  <div className="mb-2 flex items-center justify-between">
 
-                    <div className="mb-2 flex items-center justify-between">
-
-                      <label
-                        htmlFor="password"
-                        className="block text-sm font-bold text-slate-700"
-                      >
-                        Şifre
-                      </label>
-
-                      {mode === "signup" && (
-
-                        <span className="text-xs font-semibold text-slate-400">
-                          En az 6 karakter
-                        </span>
-
-                      )}
-
-                    </div>
-
-                    <input
-                      id="password"
-                      type="password"
-                      value={password}
-                      onChange={(event) =>
-                        setPassword(
-                          event.target.value
-                        )
-                      }
-                      placeholder="••••••••"
-                      autoComplete={
-                        mode === "login"
-                          ? "current-password"
-                          : "new-password"
-                      }
-                      disabled={submitting}
-                      required
-                      minLength={6}
-                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3.5 text-sm outline-none transition placeholder:text-slate-400 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50 disabled:cursor-not-allowed disabled:bg-slate-50"
-                    />
-
-                  </div>
-
-                )}
-
-                {mode === "login" && (
-
-                  <div className="flex justify-end">
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        switchMode("forgot")
-                      }
-                      disabled={submitting}
-                      className="text-xs font-bold text-indigo-600 transition hover:text-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
+                    <label
+                      htmlFor="password"
+                      className="block text-sm font-bold text-slate-700"
                     >
-                      Şifremi unuttum
-                    </button>
+                      Şifre
+                    </label>
+
+                    {mode === "signup" && (
+
+                      <span className="text-xs font-semibold text-slate-400">
+                        En az 6 karakter
+                      </span>
+
+                    )}
 
                   </div>
 
-                )}
+                  <input
+                    id="password"
+                    type="password"
+                    value={password}
+                    onChange={(event) =>
+                      setPassword(
+                        event.target.value
+                      )
+                    }
+                    placeholder="••••••••"
+                    autoComplete={
+                      mode === "login"
+                        ? "current-password"
+                        : "new-password"
+                    }
+                    disabled={submitting}
+                    required
+                    minLength={6}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3.5 text-sm outline-none transition placeholder:text-slate-400 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50 disabled:cursor-not-allowed disabled:bg-slate-50"
+                  />
+
+                </div>
 
                 <button
                   type="submit"
@@ -983,14 +833,10 @@ export default function AuthPage() {
                   {submitting
                     ? mode === "login"
                       ? "Giriş yapılıyor..."
-                      : mode === "signup"
-                      ? "Hesap oluşturuluyor..."
-                      : "Bağlantı gönderiliyor..."
+                      : "Hesap oluşturuluyor..."
                     : mode === "login"
                     ? "Giriş Yap →"
-                    : mode === "signup"
-                    ? "Hesap Oluştur →"
-                    : "Sıfırlama Bağlantısı Gönder →"}
+                    : "Hesap Oluştur →"}
 
                 </button>
 
@@ -998,59 +844,32 @@ export default function AuthPage() {
 
               <div className="mt-6 border-t border-slate-100 pt-5 text-center">
 
-                {mode === "forgot" ? (
+                <p className="text-xs leading-5 text-slate-400">
 
-                  <>
-                    <p className="text-xs leading-5 text-slate-400">
-                      Şifreni hatırladın mı?
-                    </p>
+                  {mode === "login"
+                    ? "Henüz hesabın yok mu?"
+                    : "Zaten hesabın var mı?"}
 
-                    <button
-                      type="button"
-                      onClick={() =>
-                        switchMode("login")
-                      }
-                      disabled={submitting}
-                      className="mt-1 text-sm font-black text-indigo-600 hover:text-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      ← Giriş yap
-                    </button>
-                  </>
+                </p>
 
-                ) : (
+                <button
+                  type="button"
+                  onClick={() =>
+                    switchMode(
+                      mode === "login"
+                        ? "signup"
+                        : "login"
+                    )
+                  }
+                  disabled={submitting}
+                  className="mt-1 text-sm font-black text-indigo-600 hover:text-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
 
-                  <>
+                  {mode === "login"
+                    ? "Ücretsiz hesap oluştur"
+                    : "Giriş yap"}
 
-                    <p className="text-xs leading-5 text-slate-400">
-
-                      {mode === "login"
-                        ? "Henüz hesabın yok mu?"
-                        : "Zaten hesabın var mı?"}
-
-                    </p>
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        switchMode(
-                          mode === "login"
-                            ? "signup"
-                            : "login"
-                        )
-                      }
-                      disabled={submitting}
-                      className="mt-1 text-sm font-black text-indigo-600 hover:text-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-
-                      {mode === "login"
-                        ? "Ücretsiz hesap oluştur"
-                        : "Giriş yap"}
-
-                    </button>
-
-                  </>
-
-                )}
+                </button>
 
               </div>
 

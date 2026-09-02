@@ -42,7 +42,7 @@ export default function NotFound() {
             href="/dashboard"
             className="inline-flex w-full items-center justify-center rounded-xl border border-slate-200 bg-white px-6 py-3 text-sm font-black text-slate-700 transition hover:bg-slate-50 sm:w-auto"
           >
-            Ana Sayfa
+            Derslere Dön
           </a>
 
         </div>
